@@ -13,7 +13,7 @@ create extension if not exists "pgcrypto"; -- for gen_random_uuid()
 -- ----------------------------------------------------------------------------
 create table if not exists business_profile (
   id              uuid primary key default gen_random_uuid(),
-  owner_id        uuid not null references auth.users(id) on delete cascade,
+  owner_id        uuid not null default '00000000-0000-0000-0000-000000000001',
   business_name   text not null default 'Smart Move Traders',
   address_line1   text not null default 'Plot 8, GF, Bharathiyar Street,',
   address_line2   text not null default 'Maruthi Nagar, Phase 1,',
@@ -35,7 +35,7 @@ create table if not exists business_profile (
 -- ----------------------------------------------------------------------------
 create table if not exists invoices (
   id                   uuid primary key default gen_random_uuid(),
-  owner_id             uuid not null references auth.users(id) on delete cascade,
+  owner_id             uuid not null default '00000000-0000-0000-0000-000000000001',
 
   -- business-facing reference vs. the official tax invoice number are kept
   -- distinct on purpose (Step 6): the UUID above is the true DB identity,

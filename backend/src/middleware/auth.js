@@ -7,10 +7,34 @@
 const { supabase, isConfigured, isDevBypass } = require('../config/supabase');
 
 const DEV_DEFAULT_USER = {
-  id: '00000000-0000-0000-0000-000000000001',
+  id: '9b1179b5-fb63-4ae2-b6b5-a62962663039',
   email: 'dealer@smartmovetraders.com',
   role: 'authenticated'
 };
+
+let cachedDevUser = null;
+
+async function getDevUser() {
+  if (cachedDevUser) return cachedDevUser;
+
+  if (isConfigured && supabase) {
+    try {
+      const { data } = await supabase.auth.admin.listUsers();
+      if (data && data.users && data.users.length > 0) {
+        cachedDevUser = {
+          id: data.users[0].id,
+          email: data.users[0].email,
+          role: 'authenticated'
+        };
+        return cachedDevUser;
+      }
+    } catch {
+      // Fallback if admin query fails
+    }
+  }
+
+  return DEV_DEFAULT_USER;
+}
 
 async function authenticate(req, res, next) {
   try {
@@ -18,12 +42,14 @@ async function authenticate(req, res, next) {
 
     // Check for explicit dev bypass header or env config
     if (isDevBypass || process.env.NODE_ENV === 'test') {
+      const devUser = await getDevUser();
+
       if (req.headers['x-dev-user-id']) {
         req.user = { id: req.headers['x-dev-user-id'], email: 'custom-dev@smartmovetraders.com' };
         return next();
       }
       if (!authHeader || authHeader.startsWith('Bearer dev-token') || authHeader.startsWith('Bearer mock-token')) {
-        req.user = DEV_DEFAULT_USER;
+        req.user = devUser;
         return next();
       }
     }
@@ -39,7 +65,7 @@ async function authenticate(req, res, next) {
 
     if (!isConfigured) {
       if (isDevBypass || process.env.NODE_ENV === 'test') {
-        req.user = DEV_DEFAULT_USER;
+        req.user = await getDevUser();
         return next();
       }
       return res.status(503).json({
@@ -66,5 +92,6 @@ async function authenticate(req, res, next) {
 
 module.exports = {
   authenticate,
-  DEV_DEFAULT_USER
+  DEV_DEFAULT_USER,
+  getDevUser
 };
