@@ -31,8 +31,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "16a9fc74-cdf2-43da-919c-ff49826"
+        "projectId": "84f9d8cf-df07-4881-81dd-38b09b09c852"
       }
-    }
+    },
+    "owner": "smart_move_traders"
   }
 }
