@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { getInvoice, updateInvoice, deleteInvoice } from '../services/api';
-import { printInvoice, shareInvoicePdf } from '../services/pdfService';
+import { printInvoice, shareInvoicePdf, downloadInvoicePdf } from '../services/pdfService';
 import { colors } from '../theme/colors';
 import { formatRupees, formatDate } from '../utils/formatters';
 import Card from '../components/Card';
@@ -20,6 +21,7 @@ export default function InvoiceDetailScreen({ route, navigation }) {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [isCustomerFacing, setIsCustomerFacing] = useState(true);
 
   const fetchInvoice = useCallback(async () => {
@@ -59,6 +61,18 @@ export default function InvoiceDetailScreen({ route, navigation }) {
       Alert.alert('Share Error', err.message || 'Unable to generate PDF.');
     } finally {
       setSharing(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!invoice) return;
+    try {
+      setDownloading(true);
+      await downloadInvoicePdf(invoice, isCustomerFacing);
+    } catch (err) {
+      Alert.alert('Download Error', err.message || 'Unable to download PDF.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -111,6 +125,10 @@ export default function InvoiceDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Business Header Card */}
         <Card style={styles.businessHeaderCard}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.cardLogo}
+          />
           <Text style={styles.bizName}>SMART MOVE TRADERS</Text>
           <Text style={styles.bizAddress}>
             Plot 8, GF, Bharathiyar Street,{'\n'}
@@ -265,25 +283,40 @@ export default function InvoiceDetailScreen({ route, navigation }) {
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.primaryActionBtn}
-            onPress={handleShare}
-            disabled={sharing}
+            style={styles.downloadActionBtn}
+            onPress={handleDownload}
+            disabled={downloading}
             activeOpacity={0.8}
           >
-            {sharing ? (
+            {downloading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryActionText}>📤 Share PDF Bill</Text>
+              <Text style={styles.downloadActionText}>📥 Download Bill PDF</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.secondaryActionBtn}
-            onPress={handlePrint}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.secondaryActionText}>🖨️ Print Bill</Text>
-          </TouchableOpacity>
+          <View style={styles.secondaryActionsRow}>
+            <TouchableOpacity
+              style={styles.shareActionBtn}
+              onPress={handleShare}
+              disabled={sharing}
+              activeOpacity={0.8}
+            >
+              {sharing ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.shareActionText}>📤 Share</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.printActionBtn}
+              onPress={handlePrint}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.printActionText}>🖨️ Print</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Status Actions */}
@@ -334,6 +367,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderTopWidth: 4,
     borderTopColor: colors.primary
+  },
+  cardLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    marginBottom: 8,
+    resizeMode: 'contain'
   },
   bizName: {
     fontSize: 20,
@@ -516,34 +556,59 @@ const styles = StyleSheet.create({
     color: colors.textPrimary
   },
   actionsContainer: {
-    flexDirection: 'row',
-    gap: 10,
-    marginVertical: 10
+    marginVertical: 12,
+    gap: 10
   },
-  primaryActionBtn: {
-    flex: 2,
+  downloadActionBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center'
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3
   },
-  primaryActionText: {
+  downloadActionText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3
   },
-  secondaryActionBtn: {
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  shareActionBtn: {
+    flex: 1,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary + '40'
+  },
+  shareActionText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13
+  },
+  printActionBtn: {
     flex: 1,
     backgroundColor: '#F1F5F9',
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border
   },
-  secondaryActionText: {
+  printActionText: {
     color: colors.textPrimary,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 13
   },
   statusActionsRow: {

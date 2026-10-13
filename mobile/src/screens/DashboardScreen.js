@@ -6,7 +6,8 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { getSummaryReport } from '../services/api';
 import { colors } from '../theme/colors';
@@ -49,9 +50,15 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.businessTitle}>SMART MOVE TRADERS</Text>
-          <Text style={styles.businessSubtitle}>Wholesale Smartphone Billing • Rule 32(5)</Text>
+        <View style={styles.brandRow}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.headerLogo}
+          />
+          <View>
+            <Text style={styles.businessTitle}>SMART MOVE TRADERS</Text>
+            <Text style={styles.businessSubtitle}>Wholesale Smartphone Billing • Rule 32(5)</Text>
+          </View>
         </View>
         <TouchableOpacity
           style={styles.newBillBtn}
@@ -194,7 +201,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.card,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
@@ -203,8 +210,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between'
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10
+  },
+  headerLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    marginRight: 10,
+    resizeMode: 'contain'
+  },
   businessTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.textPrimary,
     letterSpacing: 0.5

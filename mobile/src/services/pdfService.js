@@ -1,11 +1,13 @@
 /**
  * pdfService.js
- * Bill preview, PDF generation, and sharing using expo-print and expo-sharing.
+ * Bill preview, PDF generation, downloading, and sharing using expo-print and expo-sharing.
+ * Includes official Smart Move Traders golden bull logo in the generated PDF bills.
  */
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { formatRupees, formatDate } from '../utils/formatters';
+import { LOGO_BASE64 } from '../assets/logoBase64';
 
 const BUSINESS_DETAILS = {
   name: 'Smart Move Traders',
@@ -26,28 +28,30 @@ export function buildBillHtml(invoice, isCustomerFacing = true) {
   <title>Smart Move Traders - Invoice</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #fff; padding: 36px; font-size: 13px; }
-    .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
-    .title { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #fff; padding: 32px; font-size: 13px; }
+    .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; }
+    .logo { width: 96px; height: 96px; object-fit: contain; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .title { font-size: 24px; font-weight: 900; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
     .address { font-size: 13px; color: #475569; line-height: 1.5; }
-    .doc-type { display: inline-block; background: #e0e7ff; color: #3730a3; font-weight: 700; font-size: 11px; padding: 4px 12px; border-radius: 9999px; margin-top: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .info-card { display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .doc-type { display: inline-block; background: #e0e7ff; color: #3730a3; font-weight: 700; font-size: 11px; padding: 4px 12px; border-radius: 9999px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-card { display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; }
     .info-col h4 { font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 6px; letter-spacing: 0.5px; }
     .info-col p { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    th { background: #f1f5f9; color: #334155; font-weight: 600; text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
-    td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #f1f5f9; color: #334155; font-weight: 600; text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+    td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
-    .summary-card { margin-left: auto; width: 340px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .summary-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #475569; }
-    .summary-line.total { border-top: 2px solid #cbd5e1; padding-top: 10px; margin-top: 8px; font-size: 16px; font-weight: 800; color: #0f172a; }
-    .notice { font-size: 11px; color: #64748b; margin-top: 24px; padding: 12px; background: #f8fafc; border-left: 3px solid #4f46e5; border-radius: 4px; line-height: 1.5; }
-    .footer { margin-top: 48px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+    .summary-card { margin-left: auto; width: 340px; background: #f8fafc; padding: 14px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .summary-line { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #475569; }
+    .summary-line.total { border-top: 2px solid #cbd5e1; padding-top: 8px; margin-top: 8px; font-size: 16px; font-weight: 800; color: #0f172a; }
+    .notice { font-size: 11px; color: #64748b; margin-top: 20px; padding: 12px; background: #f8fafc; border-left: 3px solid #4f46e5; border-radius: 4px; line-height: 1.5; }
+    .footer { margin-top: 36px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 14px; }
   </style>
 </head>
 <body>
   <div class="header">
+    <img src="${LOGO_BASE64}" class="logo" alt="Smart Move Traders Logo" />
     <div class="title">${BUSINESS_DETAILS.name}</div>
     <div class="address">
       ${BUSINESS_DETAILS.addressLine1}<br>
@@ -149,6 +153,20 @@ export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
       UTI: '.pdf',
       mimeType: 'application/pdf',
       dialogTitle: `Share Invoice - Smart Move Traders`
+    });
+  }
+  return uri;
+}
+
+export async function downloadInvoicePdf(invoice, isCustomerFacing = true) {
+  const html = buildBillHtml(invoice, isCustomerFacing);
+  const { uri } = await Print.printToFileAsync({ html });
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(uri, {
+      UTI: '.pdf',
+      mimeType: 'application/pdf',
+      dialogTitle: `Download / Save Invoice - Smart Move Traders`
     });
   }
   return uri;
