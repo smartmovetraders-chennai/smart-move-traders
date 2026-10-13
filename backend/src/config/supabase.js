@@ -16,6 +16,7 @@ const isDevBypass = process.env.DEV_BYPASS_AUTH === 'true';
 let supabaseClient = null;
 
 const isConfigured = Boolean(
+  process.env.NODE_ENV !== 'test' &&
   supabaseUrl &&
   supabaseServiceRoleKey &&
   !supabaseUrl.includes('YOUR-PROJECT') &&
