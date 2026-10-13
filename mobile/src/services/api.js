@@ -1,37 +1,20 @@
 /**
  * api.js
  * Axios API client for Smart Move Traders mobile application.
- * Automatically resolves the computer's IP address so physical phones can connect seamlessly.
+ * Connects directly to production Vercel Serverless API (24/7, high speed, free).
  */
 
 import axios from 'axios';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 
-function detectDefaultHost() {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:4000';
-  }
+// Production Vercel Serverless API host
+export const PRODUCTION_HOST = 'https://smart-move-traders.vercel.app';
 
-  // Automatically detect host IP from Expo Go bundler
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:4000`;
-    }
-  }
-
-  // Local Wi-Fi IP address of the development machine
-  return 'http://192.168.0.103:4000';
-}
-
-const DEFAULT_HOST = detectDefaultHost();
-let currentBaseUrl = `${DEFAULT_HOST}/api`;
+let currentBaseUrl = `${PRODUCTION_HOST}/api`;
 
 const apiClient = axios.create({
   baseURL: currentBaseUrl,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer dev-token' // Connects directly via DEV mode or Supabase JWT
