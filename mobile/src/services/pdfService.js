@@ -155,51 +155,42 @@ export async function printInvoice(invoice, isCustomerFacing = true) {
 }
 
 /**
- * Prepares the PDF file in a secure, FileProvider-accessible cache directory
- * with a clean, branded filename.
+ * Prepares the PDF file by generating base64 directly from Print
+ * and writing it into the app's own documentDirectory.
+ * This completely avoids reading from the restricted host.exp.exponent/cache/Print/ directory!
  */
 async function preparePdfFile(invoice, isCustomerFacing = true) {
   const html = buildBillHtml(invoice, isCustomerFacing);
-  const { uri: tempUri } = await Print.printToFileAsync({ html });
+  // Generate PDF and receive base64 directly in JS memory
+  const { uri: tempUri, base64 } = await Print.printToFileAsync({ html, base64: true });
 
   const cleanRef = (invoice.invoice_number || invoice.id?.slice(0, 8) || 'bill')
     .replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `SmartMoveTraders_Invoice_${cleanRef}.pdf`;
 
-  // Method 1: expo-file-system/legacy
-  try {
-    if (FileSystem && FileSystem.cacheDirectory) {
-      const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
-      const fileInfo = await FileSystem.getInfoAsync(destinationUri);
-      if (fileInfo && fileInfo.exists) {
-        await FileSystem.deleteAsync(destinationUri, { idempotent: true });
-      }
-      await FileSystem.copyAsync({
-        from: tempUri,
-        to: destinationUri
+  // Write base64 directly into our own documentDirectory (100% read/write permitted in Android & iOS)
+  if (base64 && FileSystem && FileSystem.documentDirectory) {
+    try {
+      const destinationUri = `${FileSystem.documentDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(destinationUri, base64, {
+        encoding: FileSystem.EncodingType.Base64
       });
-      return { uri: destinationUri, filename };
-    }
-  } catch (legacyErr) {
-    console.warn('Legacy FileSystem copy error, trying File API:', legacyErr);
-  }
-
-  // Method 2: new File API (Expo SDK 52/57)
-  try {
-    if (typeof File !== 'undefined' && typeof Paths !== 'undefined' && Paths.cache) {
-      const source = new File(tempUri);
-      const dest = new File(Paths.cache, filename);
-      if (dest.exists) {
-        dest.delete();
+      return { uri: destinationUri, filename, base64 };
+    } catch (writeErr) {
+      console.warn('Failed writing to documentDirectory, trying cacheDirectory:', writeErr);
+      try {
+        const cacheUri = `${FileSystem.cacheDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(cacheUri, base64, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        return { uri: cacheUri, filename, base64 };
+      } catch (cacheErr) {
+        console.warn('Failed writing to cacheDirectory:', cacheErr);
       }
-      source.copy(dest);
-      return { uri: dest.uri, filename };
     }
-  } catch (fileApiErr) {
-    console.warn('File API copy error:', fileApiErr);
   }
 
-  return { uri: tempUri, filename };
+  return { uri: tempUri, filename, base64 };
 }
 
 export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
@@ -218,16 +209,13 @@ export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
 }
 
 export async function downloadInvoicePdf(invoice, isCustomerFacing = true) {
-  const { uri, filename } = await preparePdfFile(invoice, isCustomerFacing);
+  const { uri, filename, base64 } = await preparePdfFile(invoice, isCustomerFacing);
 
-  // On Android, attempt direct native save to user-selected folder (e.g. Downloads) via StorageAccessFramework
-  if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+  // 1. On Android: If StorageAccessFramework is available and base64 is present, save directly to user folder!
+  if (Platform.OS === 'android' && base64 && FileSystem && FileSystem.StorageAccessFramework) {
     try {
       const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-      if (permissions.granted) {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64
-        });
+      if (permissions && permissions.granted) {
         const createdUri = await FileSystem.StorageAccessFramework.createFileAsync(
           permissions.directoryUri,
           filename,
@@ -236,15 +224,15 @@ export async function downloadInvoicePdf(invoice, isCustomerFacing = true) {
         await FileSystem.writeAsStringAsync(createdUri, base64, {
           encoding: FileSystem.EncodingType.Base64
         });
-        Alert.alert('Downloaded Successfully', `Invoice PDF saved as:\n${filename}`);
+        Alert.alert('Downloaded Successfully', `Invoice PDF saved to your selected folder as:\n${filename}`);
         return createdUri;
       }
     } catch (safErr) {
-      console.warn('StorageAccessFramework skipped or canceled, using share sheet:', safErr);
+      console.warn('StorageAccessFramework save skipped/canceled, opening share sheet:', safErr);
     }
   }
 
-  // Fallback for iOS or if user dismisses folder picker: open share sheet to save/share
+  // 2. Open native share sheet (WhatsApp, Drive, Gmail, Save to Files, etc.)
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
     await Sharing.shareAsync(uri, {
