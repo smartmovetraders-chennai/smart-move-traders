@@ -102,7 +102,7 @@ function generateBillHtml(invoice, options = { isCustomerFacing: true }) {
           Second-Hand Smartphones (Wholesale Lot)
           ${Array.isArray(invoice.items) && invoice.items.length > 0 ? `
             <div style="font-size: 11px; color: #64748b; margin-top: 5px; line-height: 1.4;">
-              ${invoice.items.map(it => `• ${it.model}: <strong>${it.quantity} Qty</strong>`).join('<br>')}
+              ${invoice.items.map(it => `• ${it.model}: <strong>${it.quantity} Qty</strong>${it.price > 0 ? ` &mdash; <span style="color: #166534; font-weight: 600;">₹${Number(it.price).toLocaleString('en-IN')}</span>` : ''}`).join('<br>')}
             </div>
           ` : ''}
         </td>

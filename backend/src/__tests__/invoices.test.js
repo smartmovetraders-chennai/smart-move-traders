@@ -142,8 +142,8 @@ describe('Invoice API Endpoints & Security Checks', () => {
       .set(userAHeaders)
       .send({
         items: [
-          { model: 'iPhone 17', quantity: 1 },
-          { model: 'iPhone 15', quantity: 4 }
+          { model: 'iPhone 17', quantity: 1, price: 60000 },
+          { model: 'iPhone 15', quantity: 4, price: 120000 }
         ],
         purchaseAmount: 180000,
         sellingAmount: 210000,
@@ -157,6 +157,8 @@ describe('Invoice API Endpoints & Security Checks', () => {
     expect(res.body.data.items).toHaveLength(2);
     expect(res.body.data.items[0].model).toBe('iPhone 17');
     expect(res.body.data.items[0].quantity).toBe(1);
+    expect(res.body.data.items[0].price).toBe(60000);
+    expect(res.body.data.items[1].price).toBe(120000);
     // Single grand total pricing:
     expect(res.body.data.selling_amount).toBe(210000);
     expect(res.body.data.profit_amount).toBe(30000);

@@ -15,7 +15,8 @@ function normalizeItems(items) {
     .filter(it => it && (it.model || it.model_name) && Number(it.quantity) > 0)
     .map(it => ({
       model: String(it.model || it.model_name).trim(),
-      quantity: parseInt(it.quantity, 10)
+      quantity: parseInt(it.quantity, 10),
+      price: it.price !== undefined && it.price !== null && !isNaN(Number(it.price)) ? Number(it.price) : 0
     }));
 }
 

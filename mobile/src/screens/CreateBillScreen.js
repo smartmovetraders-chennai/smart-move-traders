@@ -24,7 +24,7 @@ export default function CreateBillScreen({ navigation }) {
   const [quantity, setQuantity] = useState('');
   const [useModelBreakdown, setUseModelBreakdown] = useState(false);
   const [modelItems, setModelItems] = useState([
-    { model: '', quantity: '' }
+    { model: '', quantity: '', price: '' }
   ]);
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [sellingAmount, setSellingAmount] = useState('');
@@ -42,8 +42,22 @@ export default function CreateBillScreen({ navigation }) {
     }, 0);
   }, [modelItems]);
 
+  const totalModelCost = useMemo(() => {
+    return modelItems.reduce((acc, curr) => {
+      const p = parseFloat(curr.price);
+      return acc + (!isNaN(p) && p > 0 ? p : 0);
+    }, 0);
+  }, [modelItems]);
+
+  // When model breakdown is used and prices are entered, auto-sync to purchaseAmount
+  useEffect(() => {
+    if (useModelBreakdown && totalModelCost > 0) {
+      setPurchaseAmount(String(totalModelCost));
+    }
+  }, [useModelBreakdown, totalModelCost]);
+
   const handleAddModelRow = () => {
-    setModelItems(prev => [...prev, { model: '', quantity: '' }]);
+    setModelItems(prev => [...prev, { model: '', quantity: '', price: '' }]);
   };
 
   const handleRemoveModelRow = (index) => {
@@ -78,7 +92,8 @@ export default function CreateBillScreen({ navigation }) {
         .filter(it => it.model.trim() && parseInt(it.quantity, 10) > 0)
         .map(it => ({
           model: it.model.trim(),
-          quantity: parseInt(it.quantity, 10)
+          quantity: parseInt(it.quantity, 10),
+          price: parseFloat(it.price) || 0
         }));
 
       if (itemsPayload.length === 0) {
@@ -214,6 +229,14 @@ export default function CreateBillScreen({ navigation }) {
                       value={String(item.quantity || '')}
                       onChangeText={(val) => handleUpdateModelItem(index, 'quantity', val)}
                     />
+                    <TextInput
+                      style={[styles.input, styles.modelPriceInput]}
+                      placeholder="Cost (₹)"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      value={String(item.price || '')}
+                      onChangeText={(val) => handleUpdateModelItem(index, 'price', val)}
+                    />
                     {modelItems.length > 1 ? (
                       <TouchableOpacity
                         onPress={() => handleRemoveModelRow(index)}
@@ -235,8 +258,16 @@ export default function CreateBillScreen({ navigation }) {
                 </TouchableOpacity>
 
                 <View style={styles.totalModelQtyBanner}>
-                  <Text style={styles.totalModelQtyLabel}>Total Quantity:</Text>
-                  <Text style={styles.totalModelQtyVal}>{totalModelQty} Devices</Text>
+                  <View>
+                    <Text style={styles.totalModelQtyLabel}>Total Quantity:</Text>
+                    <Text style={styles.totalModelQtyVal}>{totalModelQty} Devices</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.totalModelQtyLabel}>Total Purchase Cost:</Text>
+                    <Text style={[styles.totalModelQtyVal, { color: '#059669' }]}>
+                      {formatRupees(totalModelCost)}
+                    </Text>
+                  </View>
                 </View>
               </View>
             ) : (
@@ -262,7 +293,11 @@ export default function CreateBillScreen({ navigation }) {
                 value={purchaseAmount}
                 onChangeText={setPurchaseAmount}
               />
-              <Text style={styles.hint}>Lot buy cost</Text>
+              <Text style={styles.hint}>
+                {useModelBreakdown && totalModelCost > 0
+                  ? 'Auto-calculated from model prices'
+                  : 'Lot buy cost'}
+              </Text>
             </View>
 
             <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
@@ -626,15 +661,19 @@ const styles = StyleSheet.create({
   },
   modelNameInput: {
     flex: 2,
-    marginRight: 8
+    marginRight: 6
   },
   modelQtyInput: {
-    flex: 1,
-    marginRight: 8,
+    flex: 0.9,
+    marginRight: 6,
     textAlign: 'center'
   },
+  modelPriceInput: {
+    flex: 1.4,
+    marginRight: 6
+  },
   removeModelBtn: {
-    width: 34,
+    width: 32,
     height: 42,
     justifyContent: 'center',
     alignItems: 'center',
