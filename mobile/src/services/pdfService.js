@@ -6,6 +6,8 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { Platform, Alert } from 'react-native';
 import { formatRupees, formatDate } from '../utils/formatters';
 import { LOGO_BASE64 } from '../assets/logoBase64';
 
@@ -151,30 +153,87 @@ export async function printInvoice(invoice, isCustomerFacing = true) {
   await Print.printAsync({ html });
 }
 
-export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
+/**
+ * Prepares the PDF file in a secure, FileProvider-accessible cache directory
+ * with a clean, branded filename.
+ */
+async function preparePdfFile(invoice, isCustomerFacing = true) {
   const html = buildBillHtml(invoice, isCustomerFacing);
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri: tempUri } = await Print.printToFileAsync({ html });
+
+  const cleanRef = (invoice.invoice_number || invoice.id?.slice(0, 8) || 'bill')
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `SmartMoveTraders_Invoice_${cleanRef}.pdf`;
+  const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
+
+  try {
+    const fileInfo = await FileSystem.getInfoAsync(destinationUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(destinationUri, { idempotent: true });
+    }
+    await FileSystem.copyAsync({
+      from: tempUri,
+      to: destinationUri
+    });
+    return { uri: destinationUri, filename };
+  } catch (copyErr) {
+    console.warn('PDF cache copy fallback:', copyErr);
+    return { uri: tempUri, filename };
+  }
+}
+
+export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
+  const { uri, filename } = await preparePdfFile(invoice, isCustomerFacing);
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
     await Sharing.shareAsync(uri, {
       UTI: '.pdf',
       mimeType: 'application/pdf',
-      dialogTitle: `Share Invoice - Smart Move Traders`
+      dialogTitle: `Share Invoice - ${filename}`
     });
+  } else {
+    Alert.alert('Sharing Unavailable', 'File sharing is not supported on this device.');
   }
   return uri;
 }
 
 export async function downloadInvoicePdf(invoice, isCustomerFacing = true) {
-  const html = buildBillHtml(invoice, isCustomerFacing);
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri, filename } = await preparePdfFile(invoice, isCustomerFacing);
+
+  // On Android, attempt direct native save to user-selected folder (e.g. Downloads) via StorageAccessFramework
+  if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+    try {
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        const createdUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          filename,
+          'application/pdf'
+        );
+        await FileSystem.writeAsStringAsync(createdUri, base64, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        Alert.alert('Downloaded Successfully', `Invoice PDF saved as:\n${filename}`);
+        return createdUri;
+      }
+    } catch (safErr) {
+      console.warn('StorageAccessFramework skipped or canceled, using share sheet:', safErr);
+    }
+  }
+
+  // Fallback for iOS or if user dismisses folder picker: open share sheet to save/share
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
     await Sharing.shareAsync(uri, {
       UTI: '.pdf',
       mimeType: 'application/pdf',
-      dialogTitle: `Download / Save Invoice - Smart Move Traders`
+      dialogTitle: `Save / Download Invoice - Smart Move Traders`
     });
+  } else {
+    Alert.alert('Download Ready', `File generated: ${filename}`);
   }
   return uri;
 }
