@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,30 +10,30 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Switch
-} from 'react-native';
-import { createInvoice } from '../services/api';
-import { calculateMarginGst } from '../services/gstCalculator';
-import { colors } from '../theme/colors';
-import { formatRupees } from '../utils/formatters';
-import Card from '../components/Card';
+  Switch,
+} from "react-native";
+import { createInvoice } from "../services/api";
+import { calculateMarginGst } from "../services/gstCalculator";
+import { colors } from "../theme/colors";
+import { formatRupees } from "../utils/formatters";
+import Card from "../components/Card";
 
-const PAYMENT_METHODS = ['UPI', 'Bank Transfer', 'Cash', 'Cheque'];
+const PAYMENT_METHODS = ["UPI", "Bank Transfer", "Cash", "Cheque"];
 
 export default function CreateBillScreen({ navigation }) {
-  const [quantity, setQuantity] = useState('');
+  const [quantity, setQuantity] = useState("");
   const [useModelBreakdown, setUseModelBreakdown] = useState(false);
   const [modelItems, setModelItems] = useState([
-    { model: '', quantity: '', price: '' }
+    { model: "", quantity: "", price: "" },
   ]);
-  const [purchaseAmount, setPurchaseAmount] = useState('');
-  const [sellingAmount, setSellingAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
-  const [clientName, setClientName] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [notes, setNotes] = useState('');
+  const [purchaseAmount, setPurchaseAmount] = useState("");
+  const [sellingAmount, setSellingAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("UPI");
+  const [clientName, setClientName] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
 
   const totalModelQty = useMemo(() => {
     return modelItems.reduce((acc, curr) => {
@@ -57,17 +57,17 @@ export default function CreateBillScreen({ navigation }) {
   }, [useModelBreakdown, totalModelCost]);
 
   const handleAddModelRow = () => {
-    setModelItems(prev => [...prev, { model: '', quantity: '', price: '' }]);
+    setModelItems((prev) => [...prev, { model: "", quantity: "", price: "" }]);
   };
 
   const handleRemoveModelRow = (index) => {
     if (modelItems.length > 1) {
-      setModelItems(prev => prev.filter((_, i) => i !== index));
+      setModelItems((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
   const handleUpdateModelItem = (index, field, value) => {
-    setModelItems(prev => {
+    setModelItems((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       return updated;
@@ -82,29 +82,33 @@ export default function CreateBillScreen({ navigation }) {
   }, [purchaseAmount, sellingAmount]);
 
   const handleSubmit = async () => {
-    setFormError('');
+    setFormError("");
 
     let finalQty = parseInt(quantity, 10);
     let itemsPayload = [];
 
     if (useModelBreakdown) {
       itemsPayload = modelItems
-        .filter(it => it.model.trim() && parseInt(it.quantity, 10) > 0)
-        .map(it => ({
+        .filter((it) => it.model.trim() && parseInt(it.quantity, 10) > 0)
+        .map((it) => ({
           model: it.model.trim(),
           quantity: parseInt(it.quantity, 10),
-          price: parseFloat(it.price) || 0
+          price: parseFloat(it.price) || 0,
         }));
 
       if (itemsPayload.length === 0) {
-        setFormError('Please enter at least one phone model with quantity (e.g. iPhone 17: 1 Qty)');
+        setFormError(
+          "Please enter at least one phone model with quantity (e.g. iPhone 17: 1 Qty)",
+        );
         return;
       }
 
       finalQty = itemsPayload.reduce((acc, curr) => acc + curr.quantity, 0);
     } else {
       if (!quantity || isNaN(finalQty) || finalQty <= 0) {
-        setFormError('Please enter a valid whole quantity of smartphones (e.g. 25)');
+        setFormError(
+          "Please enter a valid whole quantity of smartphones (e.g. 25)",
+        );
         return;
       }
     }
@@ -112,13 +116,13 @@ export default function CreateBillScreen({ navigation }) {
     const purchase = parseFloat(purchaseAmount);
     const selling = parseFloat(sellingAmount);
 
-    if (purchaseAmount === '' || isNaN(purchase) || purchase < 0) {
-      setFormError('Please enter a valid non-negative lot purchase cost');
+    if (purchaseAmount === "" || isNaN(purchase) || purchase < 0) {
+      setFormError("Please enter a valid non-negative lot purchase cost");
       return;
     }
 
-    if (sellingAmount === '' || isNaN(selling) || selling < 0) {
-      setFormError('Please enter a valid non-negative lot selling price');
+    if (sellingAmount === "" || isNaN(selling) || selling < 0) {
+      setFormError("Please enter a valid non-negative lot selling price");
       return;
     }
 
@@ -133,40 +137,43 @@ export default function CreateBillScreen({ navigation }) {
         clientName: clientName.trim() || null,
         invoiceNumber: invoiceNumber.trim() || null,
         notes: notes.trim() || null,
-        status: 'issued'
+        status: "issued",
       };
 
       const res = await createInvoice(payload);
       if (res.data && res.data.success) {
         Alert.alert(
-          'Invoice Created',
+          "Invoice Created",
           `Bill recorded successfully for ${finalQty} second-hand smartphones.`,
           [
             {
-              text: 'View & Share Bill',
+              text: "View & Share Bill",
               onPress: () => {
-                navigation.replace('InvoiceDetail', { invoiceId: res.data.data.id });
-              }
+                navigation.replace("InvoiceDetail", {
+                  invoiceId: res.data.data.id,
+                });
+              },
             },
             {
-              text: 'Create Another',
+              text: "Create Another",
               onPress: () => {
-                setQuantity('');
-                setModelItems([{ model: '', quantity: '' }]);
-                setPurchaseAmount('');
-                setSellingAmount('');
-                setClientName('');
-                setInvoiceNumber('');
-                setNotes('');
-              }
-            }
-          ]
+                setQuantity("");
+                setModelItems([{ model: "", quantity: "" }]);
+                setPurchaseAmount("");
+                setSellingAmount("");
+                setClientName("");
+                setInvoiceNumber("");
+                setNotes("");
+              },
+            },
+          ],
         );
       }
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Failed to save bill';
+      const msg =
+        err.response?.data?.error || err.message || "Failed to save bill";
       setFormError(msg);
-      Alert.alert('Submission Error', msg);
+      Alert.alert("Submission Error", msg);
     } finally {
       setLoading(false);
     }
@@ -174,13 +181,15 @@ export default function CreateBillScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Create Wholesale Bill</Text>
-          <Text style={styles.subtitle}>Smart Move Traders • CGST Rule 32(5) Margin Scheme</Text>
+          <Text style={styles.subtitle}>
+            Smart Move Traders • CGST Rule 32(5) Margin Scheme
+          </Text>
         </View>
 
         {formError ? (
@@ -197,15 +206,17 @@ export default function CreateBillScreen({ navigation }) {
             <View style={styles.toggleRow}>
               <View>
                 <Text style={styles.label}>Quantity of Smartphones *</Text>
-                <Text style={styles.hint}>Total phone count in this wholesale lot</Text>
+                <Text style={styles.hint}>
+                  Total phone count in this wholesale lot
+                </Text>
               </View>
               <View style={styles.modelToggleSwitchRow}>
                 <Text style={styles.toggleSwitchLabel}>Split by Model</Text>
                 <Switch
                   value={useModelBreakdown}
                   onValueChange={setUseModelBreakdown}
-                  trackColor={{ false: '#CBD5E1', true: colors.primaryLight }}
-                  thumbColor={useModelBreakdown ? colors.primary : '#94A3B8'}
+                  trackColor={{ false: "#CBD5E1", true: colors.primaryLight }}
+                  thumbColor={useModelBreakdown ? colors.primary : "#94A3B8"}
                 />
               </View>
             </View>
@@ -219,23 +230,29 @@ export default function CreateBillScreen({ navigation }) {
                       placeholder="Model (e.g. iPhone 17)"
                       placeholderTextColor={colors.textMuted}
                       value={item.model}
-                      onChangeText={(val) => handleUpdateModelItem(index, 'model', val)}
+                      onChangeText={(val) =>
+                        handleUpdateModelItem(index, "model", val)
+                      }
                     />
                     <TextInput
                       style={[styles.input, styles.modelQtyInput]}
                       placeholder="Qty"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="number-pad"
-                      value={String(item.quantity || '')}
-                      onChangeText={(val) => handleUpdateModelItem(index, 'quantity', val)}
+                      value={String(item.quantity || "")}
+                      onChangeText={(val) =>
+                        handleUpdateModelItem(index, "quantity", val)
+                      }
                     />
                     <TextInput
                       style={[styles.input, styles.modelPriceInput]}
                       placeholder="Cost (₹)"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
-                      value={String(item.price || '')}
-                      onChangeText={(val) => handleUpdateModelItem(index, 'price', val)}
+                      value={String(item.price || "")}
+                      onChangeText={(val) =>
+                        handleUpdateModelItem(index, "price", val)
+                      }
                     />
                     {modelItems.length > 1 ? (
                       <TouchableOpacity
@@ -254,17 +271,27 @@ export default function CreateBillScreen({ navigation }) {
                   style={styles.addModelBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.addModelBtnText}>+ Add Another Model</Text>
+                  <Text style={styles.addModelBtnText}>
+                    + Add Another Model
+                  </Text>
                 </TouchableOpacity>
 
                 <View style={styles.totalModelQtyBanner}>
                   <View>
-                    <Text style={styles.totalModelQtyLabel}>Total Quantity:</Text>
-                    <Text style={styles.totalModelQtyVal}>{totalModelQty} Devices</Text>
+                    <Text style={styles.totalModelQtyLabel}>
+                      Total Quantity:
+                    </Text>
+                    <Text style={styles.totalModelQtyVal}>
+                      {totalModelQty} Devices
+                    </Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.totalModelQtyLabel}>Total Purchase Cost:</Text>
-                    <Text style={[styles.totalModelQtyVal, { color: '#059669' }]}>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.totalModelQtyLabel}>
+                      Total Purchase Cost:
+                    </Text>
+                    <Text
+                      style={[styles.totalModelQtyVal, { color: "#059669" }]}
+                    >
                       {formatRupees(totalModelCost)}
                     </Text>
                   </View>
@@ -295,8 +322,8 @@ export default function CreateBillScreen({ navigation }) {
               />
               <Text style={styles.hint}>
                 {useModelBreakdown && totalModelCost > 0
-                  ? 'Auto-calculated from model prices'
-                  : 'Lot buy cost'}
+                  ? "Auto-calculated from model prices"
+                  : "Lot buy cost"}
               </Text>
             </View>
 
@@ -323,10 +350,18 @@ export default function CreateBillScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={method}
-                    style={[styles.paymentBtn, isSelected && styles.paymentBtnActive]}
+                    style={[
+                      styles.paymentBtn,
+                      isSelected && styles.paymentBtnActive,
+                    ]}
                     onPress={() => setPaymentMethod(method)}
                   >
-                    <Text style={[styles.paymentBtnText, isSelected && styles.paymentBtnTextActive]}>
+                    <Text
+                      style={[
+                        styles.paymentBtnText,
+                        isSelected && styles.paymentBtnTextActive,
+                      ]}
+                    >
                       {method}
                     </Text>
                   </TouchableOpacity>
@@ -345,22 +380,42 @@ export default function CreateBillScreen({ navigation }) {
 
           <View style={styles.calcRow}>
             <Text style={styles.calcLabel}>Selling Turnover:</Text>
-            <Text style={styles.calcValue}>{formatRupees(parseFloat(sellingAmount) || 0)}</Text>
+            <Text style={styles.calcValue}>
+              {formatRupees(parseFloat(sellingAmount) || 0)}
+            </Text>
           </View>
           <View style={styles.calcRow}>
             <Text style={styles.calcLabel}>Purchase Cost:</Text>
-            <Text style={styles.calcValue}>− {formatRupees(parseFloat(purchaseAmount) || 0)}</Text>
+            <Text style={styles.calcValue}>
+              − {formatRupees(parseFloat(purchaseAmount) || 0)}
+            </Text>
           </View>
           <View style={[styles.calcRow, styles.calcRowBorder]}>
-            <Text style={[styles.calcLabel, styles.bold]}>Gross Profit Margin:</Text>
-            <Text style={[styles.calcValue, styles.bold, { color: liveGst.profitAmount >= 0 ? colors.success : colors.danger }]}>
+            <Text style={[styles.calcLabel, styles.bold]}>
+              Gross Profit Margin:
+            </Text>
+            <Text
+              style={[
+                styles.calcValue,
+                styles.bold,
+                {
+                  color:
+                    liveGst.profitAmount >= 0 ? colors.success : colors.danger,
+                },
+              ]}
+            >
               {formatRupees(liveGst.profitAmount)}
             </Text>
           </View>
 
           <View style={styles.calcRow}>
             <Text style={styles.calcLabel}>Total 18% GST on Margin:</Text>
-            <Text style={[styles.calcValue, { color: '#D97706', fontWeight: '700' }]}>
+            <Text
+              style={[
+                styles.calcValue,
+                { color: "#D97706", fontWeight: "700" },
+              ]}
+            >
               {formatRupees(liveGst.gstAmount)}
             </Text>
           </View>
@@ -368,20 +423,23 @@ export default function CreateBillScreen({ navigation }) {
           {liveGst.gstAmount > 0 ? (
             <View style={styles.splitTaxBox}>
               <Text style={styles.splitTaxText}>
-                • CGST (9%): {formatRupees(liveGst.cgstAmount)}    • SGST (9%): {formatRupees(liveGst.sgstAmount)}
+                • CGST (9%): {formatRupees(liveGst.cgstAmount)} • SGST (9%):{" "}
+                {formatRupees(liveGst.sgstAmount)}
               </Text>
             </View>
           ) : null}
 
           <View style={[styles.calcRow, styles.netProfitRow]}>
             <Text style={styles.netProfitLabel}>Estimated Net Profit:</Text>
-            <Text style={styles.netProfitValue}>{formatRupees(liveGst.netProfit)}</Text>
+            <Text style={styles.netProfitValue}>
+              {formatRupees(liveGst.netProfit)}
+            </Text>
           </View>
 
           <Text style={styles.calcRuleNotice}>
             {liveGst.isLossOrBreakEven
-              ? '✓ Margin is zero or negative: ₹0 GST charged under Rule 32(5).'
-              : '✓ 18% GST applies strictly to the positive profit margin, never to the total selling turnover.'}
+              ? "✓ Margin is zero or negative: ₹0 GST charged under Rule 32(5)."
+              : "✓ 18% GST applies strictly to the positive profit margin, never to the total selling turnover."}
           </Text>
         </Card>
 
@@ -409,7 +467,9 @@ export default function CreateBillScreen({ navigation }) {
               value={invoiceNumber}
               onChangeText={setInvoiceNumber}
             />
-            <Text style={styles.hint}>Your business reference (official GST number assigned separately)</Text>
+            <Text style={styles.hint}>
+              Your business reference (official GST number assigned separately)
+            </Text>
           </View>
 
           <View style={styles.fieldGroup}>
@@ -434,9 +494,21 @@ export default function CreateBillScreen({ navigation }) {
           activeOpacity={0.8}
         >
           {loading ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color="#FFFFFF" size="small" style={{ marginRight: 8 }} />
-              <Text style={styles.submitBtnText}>Saving Bill & Computing GST...</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <ActivityIndicator
+                color="#FFFFFF"
+                size="small"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.submitBtnText}>
+                Saving Bill & Computing GST...
+              </Text>
             </View>
           ) : (
             <Text style={styles.submitBtnText}>Generate & Save Bill</Text>
@@ -450,294 +522,294 @@ export default function CreateBillScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40
+    paddingBottom: 40,
   },
   header: {
-    marginBottom: 16
+    marginBottom: 16,
   },
   title: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
     color: colors.textPrimary,
-    letterSpacing: -0.3
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 2
+    marginTop: 2,
   },
   errorBanner: {
     backgroundColor: colors.dangerLight,
-    borderColor: '#FECACA',
+    borderColor: "#FECACA",
     borderWidth: 1,
     padding: 12,
     borderRadius: 8,
-    marginBottom: 16
+    marginBottom: 16,
   },
   errorBannerText: {
     color: colors.danger,
     fontSize: 13,
-    fontWeight: '600'
+    fontWeight: "600",
   },
   formCard: {
-    marginBottom: 14
+    marginBottom: 14,
   },
   cardHeader: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.textPrimary,
     marginBottom: 14,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   fieldGroup: {
-    marginBottom: 14
+    marginBottom: 14,
   },
   rowFields: {
-    flexDirection: 'row'
+    flexDirection: "row",
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
-    marginBottom: 6
+    marginBottom: 6,
   },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: colors.textPrimary
+    color: colors.textPrimary,
   },
   textArea: {
     height: 72,
-    textAlignVertical: 'top'
+    textAlignVertical: "top",
   },
   hint: {
     fontSize: 11,
     color: colors.textMuted,
-    marginTop: 4
+    marginTop: 4,
   },
   paymentMethodsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
   paymentBtn: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#F8FAFC',
+    minWidth: "45%",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     paddingVertical: 10,
-    alignItems: 'center'
+    alignItems: "center",
   },
   paymentBtnActive: {
     backgroundColor: colors.primaryLight,
-    borderColor: colors.primary
+    borderColor: colors.primary,
   },
   paymentBtnText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary
+    fontWeight: "600",
+    color: colors.textSecondary,
   },
   paymentBtnTextActive: {
     color: colors.primary,
-    fontWeight: '700'
+    fontWeight: "700",
   },
   calcPreviewCard: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-    marginBottom: 14
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
+    marginBottom: 14,
   },
   calcHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   calcTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#166534'
+    fontWeight: "800",
+    color: "#166534",
   },
   calcTag: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#15803D',
-    backgroundColor: '#DCFCE7',
+    fontWeight: "700",
+    color: "#15803D",
+    backgroundColor: "#DCFCE7",
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4
+    borderRadius: 4,
   },
   calcRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
   },
   calcRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#BBF7D0',
+    borderTopColor: "#BBF7D0",
     paddingTop: 8,
-    marginTop: 4
+    marginTop: 4,
   },
   calcLabel: {
     fontSize: 13,
-    color: '#374151'
+    color: "#374151",
   },
   calcValue: {
     fontSize: 13,
-    color: '#111827',
-    fontWeight: '500'
+    color: "#111827",
+    fontWeight: "500",
   },
   bold: {
-    fontWeight: '700'
+    fontWeight: "700",
   },
   splitTaxBox: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: "#FEF3C7",
     padding: 6,
     borderRadius: 4,
-    marginVertical: 4
+    marginVertical: 4,
   },
   splitTaxText: {
     fontSize: 11,
-    color: '#92400E',
-    textAlign: 'center',
-    fontWeight: '600'
+    color: "#92400E",
+    textAlign: "center",
+    fontWeight: "600",
   },
   netProfitRow: {
     borderTopWidth: 2,
-    borderTopColor: '#86EFAC',
+    borderTopColor: "#86EFAC",
     paddingTop: 8,
-    marginTop: 8
+    marginTop: 8,
   },
   netProfitLabel: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#166534'
+    fontWeight: "800",
+    color: "#166534",
   },
   netProfitValue: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#166534'
+    fontWeight: "800",
+    color: "#166534",
   },
   calcRuleNotice: {
     fontSize: 11,
-    color: '#166534',
+    color: "#166534",
     marginTop: 8,
-    fontStyle: 'italic'
+    fontStyle: "italic",
   },
   toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
   modelToggleSwitchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   toggleSwitchLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary
+    fontWeight: "700",
+    color: colors.primary,
   },
   modelsContainer: {
-    marginTop: 6
+    marginTop: 6,
   },
   modelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
   modelNameInput: {
     flex: 2,
-    marginRight: 6
+    marginRight: 6,
   },
   modelQtyInput: {
     flex: 0.9,
     marginRight: 6,
-    textAlign: 'center'
+    textAlign: "center",
   },
   modelPriceInput: {
     flex: 1.4,
-    marginRight: 6
+    marginRight: 6,
   },
   removeModelBtn: {
     width: 32,
     height: 42,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    borderRadius: 8,
   },
   removeModelBtnText: {
     color: colors.danger,
-    fontWeight: '800',
-    fontSize: 14
+    fontWeight: "800",
+    fontSize: 14,
   },
   addModelBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
     backgroundColor: colors.primaryLight,
-    alignSelf: 'flex-start',
-    marginBottom: 10
+    alignSelf: "flex-start",
+    marginBottom: 10,
   },
   addModelBtnText: {
     color: colors.primary,
-    fontWeight: '700',
-    fontSize: 12
+    fontWeight: "700",
+    fontSize: 12,
   },
   totalModelQtyBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 4
+    borderColor: "#E2E8F0",
+    marginTop: 4,
   },
   totalModelQtyLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: '600'
+    fontWeight: "600",
   },
   totalModelQtyVal: {
     fontSize: 15,
     color: colors.primary,
-    fontWeight: '800'
+    fontWeight: "800",
   },
   submitBtn: {
     backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 3
+    elevation: 3,
   },
   submitBtnDisabled: {
-    opacity: 0.6
+    opacity: 0.6,
   },
   submitBtnText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '700'
-  }
+    fontWeight: "700",
+  },
 });
