@@ -24,6 +24,7 @@ export default function InvoiceDetailScreen({ route, navigation }) {
   const [downloading, setDownloading] = useState(false);
   const [isCustomerFacing, setIsCustomerFacing] = useState(true);
   const [showModelBreakdown, setShowModelBreakdown] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchInvoice = useCallback(async () => {
     try {
@@ -79,6 +80,7 @@ export default function InvoiceDetailScreen({ route, navigation }) {
 
   const handleStatusChange = async (newStatus) => {
     try {
+      setActionLoading(true);
       const res = await updateInvoice(invoiceId, { status: newStatus });
       if (res.data && res.data.success) {
         setInvoice(res.data.data);
@@ -86,6 +88,8 @@ export default function InvoiceDetailScreen({ route, navigation }) {
       }
     } catch (err) {
       Alert.alert('Update Failed', err.response?.data?.error || err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -100,11 +104,14 @@ export default function InvoiceDetailScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
+              setActionLoading(true);
               await deleteInvoice(invoiceId);
               Alert.alert('Deleted', 'Invoice removed successfully.');
               navigation.goBack();
             } catch (err) {
               Alert.alert('Error', err.response?.data?.error || err.message);
+            } finally {
+              setActionLoading(false);
             }
           }
         }
@@ -317,7 +324,10 @@ export default function InvoiceDetailScreen({ route, navigation }) {
             activeOpacity={0.8}
           >
             {downloading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator color="#FFFFFF" size="small" style={{ marginRight: 8 }} />
+                <Text style={styles.downloadActionText}>Generating & Downloading PDF...</Text>
+              </View>
             ) : (
               <Text style={styles.downloadActionText}>📥 Download Bill PDF</Text>
             )}
@@ -331,7 +341,10 @@ export default function InvoiceDetailScreen({ route, navigation }) {
               activeOpacity={0.8}
             >
               {sharing ? (
-                <ActivityIndicator color={colors.primary} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color={colors.primary} size="small" style={{ marginRight: 6 }} />
+                  <Text style={styles.shareActionText}>Sharing...</Text>
+                </View>
               ) : (
                 <Text style={styles.shareActionText}>📤 Share</Text>
               )}
@@ -353,16 +366,26 @@ export default function InvoiceDetailScreen({ route, navigation }) {
             <TouchableOpacity
               style={[styles.statusBtn, { borderColor: colors.success }]}
               onPress={() => handleStatusChange('paid')}
+              disabled={actionLoading}
             >
-              <Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>Mark as Paid</Text>
+              {actionLoading ? (
+                <ActivityIndicator size="small" color={colors.success} />
+              ) : (
+                <Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>Mark as Paid</Text>
+              )}
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity
             style={[styles.statusBtn, { borderColor: colors.danger }]}
             onPress={handleDelete}
+            disabled={actionLoading}
           >
-            <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>Delete Bill</Text>
+            {actionLoading ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 12 }}>Delete Bill</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

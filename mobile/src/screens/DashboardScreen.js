@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Image
 } from 'react-native';
-import { getSummaryReport } from '../services/api';
+import { getSummaryReport, getHealth } from '../services/api';
 import { colors } from '../theme/colors';
 import { formatRupees, formatDate } from '../utils/formatters';
 import StatCard from '../components/StatCard';
@@ -23,6 +23,28 @@ export default function DashboardScreen({ navigation }) {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [showModels, setShowModels] = useState(true);
+  const [cloudStatus, setCloudStatus] = useState(null);
+  const [checkingCloud, setCheckingCloud] = useState(false);
+
+  const checkCloudHealth = useCallback(async () => {
+    try {
+      setCheckingCloud(true);
+      const res = await getHealth();
+      if (res.data?.status === 'ok') {
+        setCloudStatus({
+          connected: true,
+          supabaseLatency: res.data.supabase?.latencyMs || 0,
+          region: res.data.vercel?.region || 'cloud'
+        });
+      } else {
+        setCloudStatus({ connected: false });
+      }
+    } catch {
+      setCloudStatus({ connected: false });
+    } finally {
+      setCheckingCloud(false);
+    }
+  }, []);
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -41,11 +63,13 @@ export default function DashboardScreen({ navigation }) {
 
   useEffect(() => {
     fetchSummary();
-  }, [fetchSummary]);
+    checkCloudHealth();
+  }, [fetchSummary, checkCloudHealth]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchSummary();
+    checkCloudHealth();
   };
 
   return (
@@ -89,6 +113,29 @@ export default function DashboardScreen({ navigation }) {
           </View>
         ) : (
           <>
+            <TouchableOpacity
+              style={[
+                styles.cloudPill,
+                cloudStatus?.connected ? styles.cloudPillOk : styles.cloudPillWarn
+              ]}
+              onPress={checkCloudHealth}
+              activeOpacity={0.7}
+            >
+              {checkingCloud ? (
+                <ActivityIndicator size="small" color="#059669" style={{ marginRight: 6 }} />
+              ) : (
+                <Text style={styles.cloudDot}>{cloudStatus?.connected ? '🟢' : '🟡'}</Text>
+              )}
+              <Text style={styles.cloudText}>
+                {checkingCloud
+                  ? 'Pinging Vercel & Supabase (0 storage)...'
+                  : cloudStatus?.connected
+                  ? `Vercel & Supabase Online (${cloudStatus.supabaseLatency}ms)`
+                  : 'Cloud Standby • Tap to Warm Up'}
+              </Text>
+              <Text style={styles.cloudRefreshIcon}>↻</Text>
+            </TouchableOpacity>
+
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Financial Overview</Text>
               <Text style={styles.sectionBadge}>GST Margin Scheme</Text>
@@ -321,6 +368,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 12
+  },
+  cloudPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1
+  },
+  cloudPillOk: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0'
+  },
+  cloudPillWarn: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A'
+  },
+  cloudDot: {
+    fontSize: 10,
+    marginRight: 6
+  },
+  cloudText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textPrimary
+  },
+  cloudRefreshIcon: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    marginLeft: 4
   },
   sectionHeader: {
     flexDirection: 'row',

@@ -32,7 +32,14 @@ export default function SettingsScreen() {
       if (res.data && res.data.status === 'ok') {
         setConnectionStatus({
           success: true,
-          message: `Connected to ${res.data.business} API successfully.`
+          message: 'Health check passed! Cloud API & Supabase database are active.',
+          details: res.data
+        });
+      } else {
+        setConnectionStatus({
+          success: false,
+          message: `Health check degraded: ${res.data?.supabase?.error || 'Database unreachable'}`,
+          details: res.data
         });
       }
     } catch (err) {
@@ -140,6 +147,35 @@ export default function SettingsScreen() {
               >
                 {connectionStatus.message}
               </Text>
+
+              {connectionStatus.details ? (
+                <View style={styles.healthDetailsBox}>
+                  <View style={styles.healthDetailRow}>
+                    <Text style={styles.healthDetailLabel}>▲ Vercel Cloud:</Text>
+                    <Text style={styles.healthDetailVal}>
+                      {connectionStatus.details.vercel?.status === 'alive' ? '🟢 Online' : '🔴 Degraded'} ({connectionStatus.details.vercel?.region || 'Production'})
+                    </Text>
+                  </View>
+                  <View style={styles.healthDetailRow}>
+                    <Text style={styles.healthDetailLabel}>⚡ Supabase DB:</Text>
+                    <Text style={styles.healthDetailVal}>
+                      {connectionStatus.details.supabase?.connected ? '🟢 Connected' : '🔴 Disconnected'} ({connectionStatus.details.supabase?.latencyMs || 0}ms)
+                    </Text>
+                  </View>
+                  <View style={styles.healthDetailRow}>
+                    <Text style={styles.healthDetailLabel}>🛡️ 7-Day Inactivity:</Text>
+                    <Text style={[styles.healthDetailVal, { color: '#047857', fontWeight: '700' }]}>
+                      Ping Active (0 Bytes Stored)
+                    </Text>
+                  </View>
+                  <View style={styles.healthDetailRow}>
+                    <Text style={styles.healthDetailLabel}>⏱️ Total Latency:</Text>
+                    <Text style={styles.healthDetailVal}>
+                      {connectionStatus.details.totalResponseTimeMs || 0} ms
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
             </View>
           ) : null}
         </Card>
@@ -301,6 +337,27 @@ const styles = StyleSheet.create({
   },
   statusTextError: {
     color: colors.danger
+  },
+  healthDetailsBox: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#CBD5E1'
+  },
+  healthDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 3
+  },
+  healthDetailLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600'
+  },
+  healthDetailVal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textPrimary
   },
   notesCard: {
     backgroundColor: '#F8FAFC',

@@ -399,7 +399,10 @@ export default function CreateBillScreen({ navigation }) {
           activeOpacity={0.8}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color="#FFFFFF" size="small" style={{ marginRight: 8 }} />
+              <Text style={styles.submitBtnText}>Saving Bill & Computing GST...</Text>
+            </View>
           ) : (
             <Text style={styles.submitBtnText}>Generate & Save Bill</Text>
           )}
