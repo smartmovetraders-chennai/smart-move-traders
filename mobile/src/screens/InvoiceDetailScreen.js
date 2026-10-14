@@ -23,6 +23,7 @@ export default function InvoiceDetailScreen({ route, navigation }) {
   const [sharing, setSharing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [isCustomerFacing, setIsCustomerFacing] = useState(true);
+  const [showModelBreakdown, setShowModelBreakdown] = useState(true);
 
   const fetchInvoice = useCallback(async () => {
     try {
@@ -199,21 +200,48 @@ export default function InvoiceDetailScreen({ route, navigation }) {
 
         {/* Items Table */}
         <Card style={styles.tableCard}>
-          <Text style={styles.tableTitle}>Wholesale Lot Details</Text>
+          <View style={styles.tableTitleRow}>
+            <Text style={styles.tableTitle}>Wholesale Lot Details</Text>
+            {Array.isArray(invoice.items) && invoice.items.length > 0 ? (
+              <TouchableOpacity
+                style={styles.modelToggleBtn}
+                onPress={() => setShowModelBreakdown(!showModelBreakdown)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modelToggleBtnText}>
+                  {showModelBreakdown ? 'Hide Models ▲' : 'Show Models ▼'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
           <View style={styles.tableRowHeader}>
             <Text style={[styles.th, { flex: 2 }]}>Description</Text>
-            <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Qty</Text>
+            <Text style={[styles.th, { flex: 1, textAlign: 'center' }]}>Total Qty</Text>
             <Text style={[styles.th, { flex: 1.5, textAlign: 'right' }]}>Selling Value</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={[styles.td, { flex: 2 }]}>Second-Hand Smartphones</Text>
-            <Text style={[styles.td, { flex: 1, textAlign: 'center', fontWeight: '700' }]}>
+            <Text style={[styles.td, { flex: 2, fontWeight: '700' }]}>Second-Hand Smartphones</Text>
+            <Text style={[styles.td, { flex: 1, textAlign: 'center', fontWeight: '800' }]}>
               {invoice.quantity}
             </Text>
             <Text style={[styles.td, { flex: 1.5, textAlign: 'right', fontWeight: '800' }]}>
               {formatRupees(invoice.selling_amount)}
             </Text>
           </View>
+
+          {/* Model-wise Quantity Breakdown (Toggleable) */}
+          {Array.isArray(invoice.items) && invoice.items.length > 0 && showModelBreakdown ? (
+            <View style={styles.modelBreakdownBox}>
+              <Text style={styles.modelBreakdownTitle}>Quantity by Model:</Text>
+              {invoice.items.map((it, idx) => (
+                <View key={idx} style={styles.modelBreakdownRow}>
+                  <Text style={styles.modelNameText}>• {it.model}</Text>
+                  <Text style={styles.modelQtyBadge}>{it.quantity} Qty</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </Card>
 
         {/* Financial / GST Calculation Card */}
@@ -457,8 +485,61 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 10,
     textTransform: 'uppercase'
+  },
+  tableTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  modelToggleBtn: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  modelToggleBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary
+  },
+  modelBreakdownBox: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingBottom: 8,
+    borderRadius: 6
+  },
+  modelBreakdownTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 6
+  },
+  modelBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3
+  },
+  modelNameText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontWeight: '600'
+  },
+  modelQtyBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4
   },
   tableRowHeader: {
     flexDirection: 'row',

@@ -135,4 +135,48 @@ describe('Invoice API Endpoints & Security Checks', () => {
     expect(res.body.data.sgst_amount).toBe(2340);
     expect(res.body.data.net_profit).toBe(21320);
   });
+
+  test('11. Model breakdown: records item quantities by model while keeping overall lot pricing intact and aggregates in summary', async () => {
+    const res = await request(app)
+      .post('/api/invoices')
+      .set(userAHeaders)
+      .send({
+        items: [
+          { model: 'iPhone 17', quantity: 1 },
+          { model: 'iPhone 15', quantity: 4 }
+        ],
+        purchaseAmount: 180000,
+        sellingAmount: 210000,
+        paymentMethod: 'Bank Transfer',
+        clientName: 'Alpha Cellular'
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.quantity).toBe(5);
+    expect(res.body.data.items).toHaveLength(2);
+    expect(res.body.data.items[0].model).toBe('iPhone 17');
+    expect(res.body.data.items[0].quantity).toBe(1);
+    // Single grand total pricing:
+    expect(res.body.data.selling_amount).toBe(210000);
+    expect(res.body.data.profit_amount).toBe(30000);
+    expect(res.body.data.gst_amount).toBe(5400);
+
+    // Fetch summary and verify model breakdown aggregation
+    const summaryRes = await request(app)
+      .get('/api/reports/summary')
+      .set(userAHeaders);
+
+    expect(summaryRes.status).toBe(200);
+    expect(summaryRes.body.success).toBe(true);
+    expect(summaryRes.body.data.totalQuantity).toBe(5);
+    expect(summaryRes.body.data.modelBreakdown).toEqual(
+      expect.arrayContaining([
+        { model: 'iPhone 17', quantity: 1 },
+        { model: 'iPhone 15', quantity: 4 }
+      ])
+    );
+    // Grand total sales unchanged:
+    expect(summaryRes.body.data.totalSales).toBe(210000);
+  });
 });

@@ -89,7 +89,14 @@ export function buildBillHtml(invoice, isCustomerFacing = true) {
     </thead>
     <tbody>
       <tr>
-        <td>Second-Hand Smartphones (Wholesale Lot)</td>
+        <td>
+          Second-Hand Smartphones (Wholesale Lot)
+          ${Array.isArray(invoice.items) && invoice.items.length > 0 ? `
+            <div style="font-size: 11px; color: #64748b; margin-top: 5px; line-height: 1.4;">
+              ${invoice.items.map(it => `• ${it.model}: <strong>${it.quantity} Qty</strong>`).join('<br>')}
+            </div>
+          ` : ''}
+        </td>
         <td class="text-center">${invoice.hsn_code || '8517'}</td>
         <td class="text-center"><strong>${invoice.quantity} Devices</strong></td>
         <td class="text-right"><strong>${formatRupees(invoice.selling_amount)}</strong></td>

@@ -22,6 +22,7 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
+  const [showModels, setShowModels] = useState(true);
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -131,12 +132,44 @@ export default function DashboardScreen({ navigation }) {
                 accentColor="#059669"
               />
               <StatCard
-                label="Total Bills"
-                value={String(summary?.invoiceCount || 0)}
-                subtext="Invoices Recorded"
+                label="Total Quantity"
+                value={`${summary?.totalQuantity || summary?.invoiceCount || 0} Phones`}
+                subtext={`${summary?.invoiceCount || 0} Lots Recorded`}
                 accentColor="#4F46E5"
               />
             </View>
+
+            {/* Total Quantity & Model Breakdown Section */}
+            {summary?.modelBreakdown && summary.modelBreakdown.length > 0 ? (
+              <Card style={styles.modelSummaryCard}>
+                <View style={styles.modelSummaryHeaderRow}>
+                  <View>
+                    <Text style={styles.modelSummaryTitle}>Quantity by Model</Text>
+                    <Text style={styles.modelSummarySubtitle}>{summary?.totalQuantity || 0} Total Units Sold</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modelSummaryToggleBtn}
+                    onPress={() => setShowModels(!showModels)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.modelSummaryToggleText}>
+                      {showModels ? 'Hide Models ▲' : 'Show Models ▼'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {showModels ? (
+                  <View style={styles.modelSummaryList}>
+                    {summary.modelBreakdown.map((item, idx) => (
+                      <View key={idx} style={styles.modelSummaryItem}>
+                        <Text style={styles.modelSummaryName}>• {item.model}</Text>
+                        <Text style={styles.modelSummaryQty}>{item.quantity} Qty</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </Card>
+            ) : null}
 
             {/* Rule 32(5) Highlight Card */}
             <Card style={styles.ruleCard}>
@@ -373,5 +406,63 @@ const styles = StyleSheet.create({
   },
   badgeWrap: {
     alignSelf: 'flex-end'
+  },
+  modelSummaryCard: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    marginBottom: 12
+  },
+  modelSummaryHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modelSummaryTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    textTransform: 'uppercase'
+  },
+  modelSummarySubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2
+  },
+  modelSummaryToggleBtn: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  modelSummaryToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary
+  },
+  modelSummaryList: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0'
+  },
+  modelSummaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4
+  },
+  modelSummaryName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary
+  },
+  modelSummaryQty: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4
   }
 });

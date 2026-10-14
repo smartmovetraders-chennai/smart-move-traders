@@ -5,6 +5,29 @@
 
 const { supabase, isConfigured, mockDb } = require('../config/supabase');
 
+function extractItems(invoice) {
+  if (!invoice) return invoice;
+  const inv = { ...invoice };
+  if (Array.isArray(inv.items) && inv.items.length > 0) {
+    return inv;
+  }
+  if (inv.notes && inv.notes.includes('[ITEMS_JSON]:')) {
+    try {
+      const match = inv.notes.match(/\[ITEMS_JSON\]:(.+)$/m);
+      if (match && match[1]) {
+        inv.items = JSON.parse(match[1]);
+        inv.notes = inv.notes.replace(/(\n)?\[ITEMS_JSON\]:.+$/m, '').trim() || null;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!Array.isArray(inv.items)) {
+    inv.items = [];
+  }
+  return inv;
+}
+
 /**
  * Returns overall business financial summary for the current dealer.
  */
@@ -33,18 +56,37 @@ async function getSummary(req, res, next) {
     let totalCgst = 0;
     let totalSgst = 0;
     let netProfit = 0;
+    let totalQuantity = 0;
+    const modelQuantityMap = new Map();
 
     for (const inv of invoices) {
-      totalSales += Number(inv.selling_amount) || 0;
-      totalPurchase += Number(inv.purchase_amount) || 0;
-      grossProfit += Number(inv.profit_amount) || 0;
-      totalGst += Number(inv.gst_amount) || 0;
-      totalCgst += Number(inv.cgst_amount) || 0;
-      totalSgst += Number(inv.sgst_amount) || 0;
-      netProfit += Number(inv.net_profit) || 0;
+      const invParsed = extractItems(inv);
+      totalSales += Number(invParsed.selling_amount) || 0;
+      totalPurchase += Number(invParsed.purchase_amount) || 0;
+      grossProfit += Number(invParsed.profit_amount) || 0;
+      totalGst += Number(invParsed.gst_amount) || 0;
+      totalCgst += Number(invParsed.cgst_amount) || 0;
+      totalSgst += Number(invParsed.sgst_amount) || 0;
+      netProfit += Number(invParsed.net_profit) || 0;
+      totalQuantity += Number(invParsed.quantity) || 0;
+
+      // Group and aggregate item quantities by model/device name
+      if (Array.isArray(invParsed.items) && invParsed.items.length > 0) {
+        for (const it of invParsed.items) {
+          const modelName = String(it.model || it.model_name || '').trim();
+          const q = parseInt(it.quantity, 10) || 0;
+          if (modelName && q > 0) {
+            modelQuantityMap.set(modelName, (modelQuantityMap.get(modelName) || 0) + q);
+          }
+        }
+      }
     }
 
     const round2 = (val) => Math.round(val * 100) / 100;
+
+    const modelBreakdown = Array.from(modelQuantityMap.entries())
+      .map(([model, quantity]) => ({ model, quantity }))
+      .sort((a, b) => b.quantity - a.quantity);
 
     const summary = {
       totalSales: round2(totalSales),
@@ -55,8 +97,10 @@ async function getSummary(req, res, next) {
       totalSgst: round2(totalSgst),
       netProfit: round2(netProfit),
       invoiceCount: invoices.length,
+      totalQuantity: totalQuantity,
+      modelBreakdown: modelBreakdown,
       profitMarginPercent: totalSales > 0 ? round2((grossProfit / totalSales) * 100) : 0,
-      recentInvoices: invoices.slice(0, 5)
+      recentInvoices: invoices.slice(0, 5).map(extractItems)
     };
 
     return res.json({

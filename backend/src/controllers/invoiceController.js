@@ -9,6 +9,39 @@ const { supabase, isConfigured, mockDb } = require('../config/supabase');
 const { validateAndCalculate, calculateGst } = require('../services/gstService');
 const { GST_CONFIG } = require('../config/constants');
 
+function normalizeItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(it => it && (it.model || it.model_name) && Number(it.quantity) > 0)
+    .map(it => ({
+      model: String(it.model || it.model_name).trim(),
+      quantity: parseInt(it.quantity, 10)
+    }));
+}
+
+function extractItems(invoice) {
+  if (!invoice) return invoice;
+  const inv = { ...invoice };
+  if (Array.isArray(inv.items) && inv.items.length > 0) {
+    return inv;
+  }
+  if (inv.notes && inv.notes.includes('[ITEMS_JSON]:')) {
+    try {
+      const match = inv.notes.match(/\[ITEMS_JSON\]:(.+)$/m);
+      if (match && match[1]) {
+        inv.items = JSON.parse(match[1]);
+        inv.notes = inv.notes.replace(/(\n)?\[ITEMS_JSON\]:.+$/m, '').trim() || null;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!Array.isArray(inv.items)) {
+    inv.items = [];
+  }
+  return inv;
+}
+
 /**
  * List invoices with pagination, status filtering, and search.
  */
@@ -34,7 +67,7 @@ async function listInvoices(req, res, next) {
       }
       items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       const totalCount = items.length;
-      const paginated = items.slice(offset, offset + limit);
+      const paginated = items.slice(offset, offset + limit).map(extractItems);
 
       return res.json({
         success: true,
@@ -69,7 +102,7 @@ async function listInvoices(req, res, next) {
 
     return res.json({
       success: true,
-      data: data || [],
+      data: (data || []).map(extractItems),
       pagination: {
         page,
         limit,
@@ -98,7 +131,7 @@ async function getInvoiceById(req, res, next) {
       if (invoice.owner_id !== ownerId) {
         return res.status(403).json({ success: false, error: 'Unauthorized: access denied to this invoice.' });
       }
-      return res.json({ success: true, data: invoice });
+      return res.json({ success: true, data: extractItems(invoice) });
     }
 
     const { data: invoice, error } = await supabase
@@ -115,7 +148,7 @@ async function getInvoiceById(req, res, next) {
       return res.status(403).json({ success: false, error: 'Unauthorized: access denied to this invoice.' });
     }
 
-    return res.json({ success: true, data: invoice });
+    return res.json({ success: true, data: extractItems(invoice) });
   } catch (err) {
     next(err);
   }
@@ -140,9 +173,15 @@ async function createInvoice(req, res, next) {
       hsnCode = GST_CONFIG.DEFAULT_HSN
     } = req.body;
 
+    const normalizedItems = normalizeItems(req.body.items);
+    let finalQty = quantity;
+    if ((finalQty === undefined || finalQty === null || finalQty === '') && normalizedItems.length > 0) {
+      finalQty = normalizedItems.reduce((acc, curr) => acc + curr.quantity, 0);
+    }
+
     // Server-side authoritative margin scheme recalculation
     const calculated = validateAndCalculate({
-      quantity,
+      quantity: finalQty,
       purchaseAmount,
       sellingAmount,
       paymentMethod
@@ -166,24 +205,46 @@ async function createInvoice(req, res, next) {
       status: status || 'draft',
       hsn_code: hsnCode || GST_CONFIG.DEFAULT_HSN,
       notes: notes ? String(notes).trim() : null,
+      items: normalizedItems,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     if (!isConfigured) {
       mockDb.invoices.set(newInvoice.id, newInvoice);
-      return res.status(201).json({ success: true, data: newInvoice });
+      return res.status(201).json({ success: true, data: extractItems(newInvoice) });
     }
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .insert([newInvoice])
-      .select()
-      .single();
+    let data;
+    try {
+      const resInsert = await supabase
+        .from('invoices')
+        .insert([newInvoice])
+        .select()
+        .single();
+      if (resInsert.error) throw resInsert.error;
+      data = resInsert.data;
+    } catch (dbErr) {
+      if (dbErr.message && dbErr.message.includes('invoices.items does not exist')) {
+        const fallbackInvoice = { ...newInvoice };
+        delete fallbackInvoice.items;
+        if (normalizedItems.length > 0) {
+          const itemsTag = `[ITEMS_JSON]:${JSON.stringify(normalizedItems)}`;
+          fallbackInvoice.notes = fallbackInvoice.notes ? `${fallbackInvoice.notes}\n${itemsTag}` : itemsTag;
+        }
+        const fallbackRes = await supabase
+          .from('invoices')
+          .insert([fallbackInvoice])
+          .select()
+          .single();
+        if (fallbackRes.error) throw fallbackRes.error;
+        data = { ...fallbackRes.data, items: normalizedItems };
+      } else {
+        throw dbErr;
+      }
+    }
 
-    if (error) throw error;
-
-    return res.status(201).json({ success: true, data });
+    return res.status(201).json({ success: true, data: extractItems(data) });
   } catch (err) {
     next(err);
   }
@@ -250,22 +311,49 @@ async function updateInvoice(req, res, next) {
     if (req.body.status !== undefined) updates.status = req.body.status;
     if (req.body.hsnCode !== undefined) updates.hsn_code = req.body.hsnCode;
 
+    if (req.body.items !== undefined) {
+      updates.items = normalizeItems(req.body.items);
+    }
+
     if (!isConfigured) {
       const updated = { ...existing, ...updates };
       mockDb.invoices.set(id, updated);
-      return res.json({ success: true, data: updated });
+      return res.json({ success: true, data: extractItems(updated) });
     }
 
-    const { data: updated, error } = await supabase
-      .from('invoices')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    let updated;
+    try {
+      const resUp = await supabase
+        .from('invoices')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (resUp.error) throw resUp.error;
+      updated = resUp.data;
+    } catch (dbErr) {
+      if (dbErr.message && dbErr.message.includes('invoices.items does not exist') && updates.items !== undefined) {
+        const fallbackUpdates = { ...updates };
+        const normItems = fallbackUpdates.items;
+        delete fallbackUpdates.items;
+        if (normItems.length > 0) {
+          const itemsTag = `[ITEMS_JSON]:${JSON.stringify(normItems)}`;
+          fallbackUpdates.notes = fallbackUpdates.notes ? `${fallbackUpdates.notes}\n${itemsTag}` : itemsTag;
+        }
+        const fallbackRes = await supabase
+          .from('invoices')
+          .update(fallbackUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+        if (fallbackRes.error) throw fallbackRes.error;
+        updated = { ...fallbackRes.data, items: normItems };
+      } else {
+        throw dbErr;
+      }
+    }
 
-    if (error) throw error;
-
-    return res.json({ success: true, data: updated });
+    return res.json({ success: true, data: extractItems(updated) });
   } catch (err) {
     next(err);
   }

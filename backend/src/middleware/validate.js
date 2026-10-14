@@ -8,7 +8,13 @@ const { INVOICE_STATUSES } = require('../config/constants');
 
 function validateCreateInvoice(req, res, next) {
   try {
-    const { quantity, purchaseAmount, sellingAmount, paymentMethod } = req.body;
+    let { quantity, purchaseAmount, sellingAmount, paymentMethod, items } = req.body;
+
+    if ((quantity === undefined || quantity === null || quantity === '') && Array.isArray(items) && items.length > 0) {
+      quantity = items.reduce((acc, curr) => acc + (parseInt(curr.quantity, 10) || 0), 0);
+      req.body.quantity = quantity;
+    }
+
     validateTransactionInput({ quantity, purchaseAmount, sellingAmount, paymentMethod });
 
     if (req.body.status && !INVOICE_STATUSES.includes(req.body.status)) {

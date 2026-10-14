@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Switch
 } from 'react-native';
 import { createInvoice } from '../services/api';
 import { calculateMarginGst } from '../services/gstCalculator';
@@ -21,6 +22,10 @@ const PAYMENT_METHODS = ['UPI', 'Bank Transfer', 'Cash', 'Cheque'];
 
 export default function CreateBillScreen({ navigation }) {
   const [quantity, setQuantity] = useState('');
+  const [useModelBreakdown, setUseModelBreakdown] = useState(false);
+  const [modelItems, setModelItems] = useState([
+    { model: '', quantity: '' }
+  ]);
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [sellingAmount, setSellingAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
@@ -29,6 +34,31 @@ export default function CreateBillScreen({ navigation }) {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const totalModelQty = useMemo(() => {
+    return modelItems.reduce((acc, curr) => {
+      const q = parseInt(curr.quantity, 10);
+      return acc + (!isNaN(q) && q > 0 ? q : 0);
+    }, 0);
+  }, [modelItems]);
+
+  const handleAddModelRow = () => {
+    setModelItems(prev => [...prev, { model: '', quantity: '' }]);
+  };
+
+  const handleRemoveModelRow = (index) => {
+    if (modelItems.length > 1) {
+      setModelItems(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleUpdateModelItem = (index, field, value) => {
+    setModelItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
 
   // Live real-time GST calculation as user types
   const liveGst = useMemo(() => {
@@ -40,14 +70,32 @@ export default function CreateBillScreen({ navigation }) {
   const handleSubmit = async () => {
     setFormError('');
 
-    const qty = parseInt(quantity, 10);
+    let finalQty = parseInt(quantity, 10);
+    let itemsPayload = [];
+
+    if (useModelBreakdown) {
+      itemsPayload = modelItems
+        .filter(it => it.model.trim() && parseInt(it.quantity, 10) > 0)
+        .map(it => ({
+          model: it.model.trim(),
+          quantity: parseInt(it.quantity, 10)
+        }));
+
+      if (itemsPayload.length === 0) {
+        setFormError('Please enter at least one phone model with quantity (e.g. iPhone 17: 1 Qty)');
+        return;
+      }
+
+      finalQty = itemsPayload.reduce((acc, curr) => acc + curr.quantity, 0);
+    } else {
+      if (!quantity || isNaN(finalQty) || finalQty <= 0) {
+        setFormError('Please enter a valid whole quantity of smartphones (e.g. 25)');
+        return;
+      }
+    }
+
     const purchase = parseFloat(purchaseAmount);
     const selling = parseFloat(sellingAmount);
-
-    if (!quantity || isNaN(qty) || qty <= 0) {
-      setFormError('Please enter a valid whole quantity of smartphones (e.g. 25)');
-      return;
-    }
 
     if (purchaseAmount === '' || isNaN(purchase) || purchase < 0) {
       setFormError('Please enter a valid non-negative lot purchase cost');
@@ -62,7 +110,8 @@ export default function CreateBillScreen({ navigation }) {
     try {
       setLoading(true);
       const payload = {
-        quantity: qty,
+        quantity: finalQty,
+        items: itemsPayload,
         purchaseAmount: purchase,
         sellingAmount: selling,
         paymentMethod,
@@ -76,7 +125,7 @@ export default function CreateBillScreen({ navigation }) {
       if (res.data && res.data.success) {
         Alert.alert(
           'Invoice Created',
-          `Bill recorded successfully for ${qty} second-hand smartphones.`,
+          `Bill recorded successfully for ${finalQty} second-hand smartphones.`,
           [
             {
               text: 'View & Share Bill',
@@ -88,6 +137,7 @@ export default function CreateBillScreen({ navigation }) {
               text: 'Create Another',
               onPress: () => {
                 setQuantity('');
+                setModelItems([{ model: '', quantity: '' }]);
                 setPurchaseAmount('');
                 setSellingAmount('');
                 setClientName('');
@@ -129,16 +179,76 @@ export default function CreateBillScreen({ navigation }) {
           <Text style={styles.cardHeader}>Lot Details (Required)</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Quantity of Smartphones *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 50"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              value={quantity}
-              onChangeText={setQuantity}
-            />
-            <Text style={styles.hint}>Total phone count in this wholesale lot</Text>
+            <View style={styles.toggleRow}>
+              <View>
+                <Text style={styles.label}>Quantity of Smartphones *</Text>
+                <Text style={styles.hint}>Total phone count in this wholesale lot</Text>
+              </View>
+              <View style={styles.modelToggleSwitchRow}>
+                <Text style={styles.toggleSwitchLabel}>Split by Model</Text>
+                <Switch
+                  value={useModelBreakdown}
+                  onValueChange={setUseModelBreakdown}
+                  trackColor={{ false: '#CBD5E1', true: colors.primaryLight }}
+                  thumbColor={useModelBreakdown ? colors.primary : '#94A3B8'}
+                />
+              </View>
+            </View>
+
+            {useModelBreakdown ? (
+              <View style={styles.modelsContainer}>
+                {modelItems.map((item, index) => (
+                  <View key={index} style={styles.modelRow}>
+                    <TextInput
+                      style={[styles.input, styles.modelNameInput]}
+                      placeholder="Model (e.g. iPhone 17)"
+                      placeholderTextColor={colors.textMuted}
+                      value={item.model}
+                      onChangeText={(val) => handleUpdateModelItem(index, 'model', val)}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.modelQtyInput]}
+                      placeholder="Qty"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      value={String(item.quantity || '')}
+                      onChangeText={(val) => handleUpdateModelItem(index, 'quantity', val)}
+                    />
+                    {modelItems.length > 1 ? (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveModelRow(index)}
+                        style={styles.removeModelBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Text style={styles.removeModelBtnText}>✕</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  onPress={handleAddModelRow}
+                  style={styles.addModelBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.addModelBtnText}>+ Add Another Model</Text>
+                </TouchableOpacity>
+
+                <View style={styles.totalModelQtyBanner}>
+                  <Text style={styles.totalModelQtyLabel}>Total Quantity:</Text>
+                  <Text style={styles.totalModelQtyVal}>{totalModelQty} Devices</Text>
+                </View>
+              </View>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 50"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                value={quantity}
+                onChangeText={setQuantity}
+              />
+            )}
           </View>
 
           <View style={styles.rowFields}>
@@ -486,6 +596,87 @@ const styles = StyleSheet.create({
     color: '#166534',
     marginTop: 8,
     fontStyle: 'italic'
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  modelToggleSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  toggleSwitchLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary
+  },
+  modelsContainer: {
+    marginTop: 6
+  },
+  modelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  modelNameInput: {
+    flex: 2,
+    marginRight: 8
+  },
+  modelQtyInput: {
+    flex: 1,
+    marginRight: 8,
+    textAlign: 'center'
+  },
+  removeModelBtn: {
+    width: 34,
+    height: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8
+  },
+  removeModelBtnText: {
+    color: colors.danger,
+    fontWeight: '800',
+    fontSize: 14
+  },
+  addModelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primaryLight,
+    alignSelf: 'flex-start',
+    marginBottom: 10
+  },
+  addModelBtnText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 12
+  },
+  totalModelQtyBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 4
+  },
+  totalModelQtyLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600'
+  },
+  totalModelQtyVal: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '800'
   },
   submitBtn: {
     backgroundColor: colors.primary,
