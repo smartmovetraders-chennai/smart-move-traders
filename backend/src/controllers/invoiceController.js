@@ -42,6 +42,18 @@ function extractItems(invoice) {
   return inv;
 }
 
+function isItemsColumnMissingError(dbErr) {
+  if (!dbErr) return false;
+  const msg = (dbErr.message || '').toLowerCase();
+  const code = dbErr.code || '';
+  return (
+    code === 'PGRST204' ||
+    msg.includes('schema cache') ||
+    msg.includes('invoices.items') ||
+    (msg.includes('items') && (msg.includes('column') || msg.includes('does not exist') || msg.includes('could not find')))
+  );
+}
+
 /**
  * List invoices with pagination, status filtering, and search.
  */
@@ -225,7 +237,7 @@ async function createInvoice(req, res, next) {
       if (resInsert.error) throw resInsert.error;
       data = resInsert.data;
     } catch (dbErr) {
-      if (dbErr.message && dbErr.message.includes('invoices.items does not exist')) {
+      if (isItemsColumnMissingError(dbErr)) {
         const fallbackInvoice = { ...newInvoice };
         delete fallbackInvoice.items;
         if (normalizedItems.length > 0) {
@@ -332,7 +344,7 @@ async function updateInvoice(req, res, next) {
       if (resUp.error) throw resUp.error;
       updated = resUp.data;
     } catch (dbErr) {
-      if (dbErr.message && dbErr.message.includes('invoices.items does not exist') && updates.items !== undefined) {
+      if (isItemsColumnMissingError(dbErr) && updates.items !== undefined) {
         const fallbackUpdates = { ...updates };
         const normItems = fallbackUpdates.items;
         delete fallbackUpdates.items;
