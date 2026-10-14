@@ -6,7 +6,8 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File, Paths } from 'expo-file-system';
 import { Platform, Alert } from 'react-native';
 import { formatRupees, formatDate } from '../utils/formatters';
 import { LOGO_BASE64 } from '../assets/logoBase64';
@@ -164,22 +165,41 @@ async function preparePdfFile(invoice, isCustomerFacing = true) {
   const cleanRef = (invoice.invoice_number || invoice.id?.slice(0, 8) || 'bill')
     .replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `SmartMoveTraders_Invoice_${cleanRef}.pdf`;
-  const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
 
+  // Method 1: expo-file-system/legacy
   try {
-    const fileInfo = await FileSystem.getInfoAsync(destinationUri);
-    if (fileInfo.exists) {
-      await FileSystem.deleteAsync(destinationUri, { idempotent: true });
+    if (FileSystem && FileSystem.cacheDirectory) {
+      const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
+      const fileInfo = await FileSystem.getInfoAsync(destinationUri);
+      if (fileInfo && fileInfo.exists) {
+        await FileSystem.deleteAsync(destinationUri, { idempotent: true });
+      }
+      await FileSystem.copyAsync({
+        from: tempUri,
+        to: destinationUri
+      });
+      return { uri: destinationUri, filename };
     }
-    await FileSystem.copyAsync({
-      from: tempUri,
-      to: destinationUri
-    });
-    return { uri: destinationUri, filename };
-  } catch (copyErr) {
-    console.warn('PDF cache copy fallback:', copyErr);
-    return { uri: tempUri, filename };
+  } catch (legacyErr) {
+    console.warn('Legacy FileSystem copy error, trying File API:', legacyErr);
   }
+
+  // Method 2: new File API (Expo SDK 52/57)
+  try {
+    if (typeof File !== 'undefined' && typeof Paths !== 'undefined' && Paths.cache) {
+      const source = new File(tempUri);
+      const dest = new File(Paths.cache, filename);
+      if (dest.exists) {
+        dest.delete();
+      }
+      source.copy(dest);
+      return { uri: dest.uri, filename };
+    }
+  } catch (fileApiErr) {
+    console.warn('File API copy error:', fileApiErr);
+  }
+
+  return { uri: tempUri, filename };
 }
 
 export async function shareInvoicePdf(invoice, isCustomerFacing = true) {
