@@ -110,13 +110,14 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Settings"
+        name="BusinessInfo"
         component={SettingsScreen}
         options={{
-          title: 'Settings',
+          title: 'Business Info',
+          tabBarLabel: 'Business',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? 'settings' : 'settings-outline'}
+              name={focused ? 'briefcase' : 'briefcase-outline'}
               size={22}
               color={color}
             />

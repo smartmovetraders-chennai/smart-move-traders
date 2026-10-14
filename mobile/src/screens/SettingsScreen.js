@@ -1,68 +1,43 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert
+  Image,
+  Dimensions
 } from 'react-native';
-import { getApiBaseUrl, setApiBaseUrl, getHealth } from '../services/api';
 import { colors } from '../theme/colors';
 import Card from '../components/Card';
 
+const { width } = Dimensions.get('window');
+
 export default function SettingsScreen() {
-  const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
-  const [testing, setTesting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState(null);
-
-  const handleSaveUrl = () => {
-    setApiBaseUrl(apiUrl);
-    Alert.alert('Saved', 'API Base URL updated.');
-  };
-
-  const handleTestConnection = async () => {
-    try {
-      setTesting(true);
-      setConnectionStatus(null);
-      setApiBaseUrl(apiUrl);
-      const res = await getHealth();
-      if (res.data && res.data.status === 'ok') {
-        setConnectionStatus({
-          success: true,
-          message: 'Health check passed! Cloud API & Supabase database are active.',
-          details: res.data
-        });
-      } else {
-        setConnectionStatus({
-          success: false,
-          message: `Health check degraded: ${res.data?.supabase?.error || 'Database unreachable'}`,
-          details: res.data
-        });
-      }
-    } catch (err) {
-      setConnectionStatus({
-        success: false,
-        message: err.message || 'Connection failed. Ensure backend server is running.'
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Settings & Business Info</Text>
-          <Text style={styles.subtitle}>Smart Move Traders • Application Configuration</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Top Header Card */}
+        <View style={styles.brandHero}>
+          <View style={styles.logoFrame}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.heroLogo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.heroTitle}>SMART MOVE TRADERS</Text>
+          <Text style={styles.heroSubtitle}>Wholesale Smartphone Billing System</Text>
+          <View style={styles.badgePill}>
+            <Text style={styles.badgeText}>GST Rule 32(5) Margin Scheme</Text>
+          </View>
         </View>
 
-        {/* Registered Business Profile */}
-        <Card style={styles.profileCard}>
-          <Text style={styles.cardHeader}>Business Identity</Text>
+        {/* Registered Enterprise Info */}
+        <Card style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardHeaderIcon}>🏢</Text>
+            <Text style={styles.cardHeader}>Business Identity</Text>
+          </View>
 
           <View style={styles.fieldRow}>
             <Text style={styles.fieldLabel}>Business Name:</Text>
@@ -80,129 +55,83 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>GSTIN:</Text>
-            <Text style={[styles.fieldValue, { color: colors.textMuted }]}>
-              (Pending GST partner confirmation)
-            </Text>
+            <Text style={styles.fieldLabel}>State & Jurisdiction:</Text>
+            <Text style={styles.fieldValue}>Tamil Nadu (State Code: 33)</Text>
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldLabel}>Default HSN Code:</Text>
-            <Text style={styles.fieldValue}>8517 (Smartphones)</Text>
+            <Text style={styles.fieldLabel}>Primary Trade Goods:</Text>
+            <Text style={styles.fieldValue}>Pre-Owned Wholesale Smartphones</Text>
+          </View>
+
+          <View style={[styles.fieldRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.fieldLabel}>HSN Classification:</Text>
+            <Text style={styles.fieldValue}>8517 (Cellular Telephones)</Text>
           </View>
         </Card>
 
-        {/* Backend Connection Settings */}
-        <Card style={styles.apiCard}>
-          <Text style={styles.cardHeader}>Backend API Connection</Text>
-          <Text style={styles.fieldDesc}>
-            Configure the local or production Express server URL:
-          </Text>
-
-          <TextInput
-            style={styles.input}
-            value={apiUrl}
-            onChangeText={setApiUrl}
-            placeholder="http://localhost:4000/api"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <View style={styles.apiBtnRow}>
-            <TouchableOpacity
-              style={styles.saveBtn}
-              onPress={handleSaveUrl}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.saveBtnText}>Save URL</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testBtn}
-              onPress={handleTestConnection}
-              disabled={testing}
-              activeOpacity={0.8}
-            >
-              {testing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text style={styles.testBtnText}>Test Connection</Text>
-              )}
-            </TouchableOpacity>
+        {/* Tax Scheme & Billing Compliance */}
+        <Card style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardHeaderIcon}>⚖️</Text>
+            <Text style={styles.cardHeader}>Taxation & Scheme Compliance</Text>
           </View>
 
-          {connectionStatus ? (
-            <View
-              style={[
-                styles.statusBox,
-                connectionStatus.success ? styles.statusSuccess : styles.statusError
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusText,
-                  connectionStatus.success ? styles.statusTextSuccess : styles.statusTextError
-                ]}
-              >
-                {connectionStatus.message}
-              </Text>
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Statutory Valuation Scheme:</Text>
+            <Text style={styles.fieldValue}>Rule 32(5) of CGST Rules, 2017</Text>
+          </View>
 
-              {connectionStatus.details ? (
-                <View style={styles.healthDetailsBox}>
-                  <View style={styles.healthDetailRow}>
-                    <Text style={styles.healthDetailLabel}>▲ Vercel Cloud:</Text>
-                    <Text style={styles.healthDetailVal}>
-                      {connectionStatus.details.vercel?.status === 'alive' ? '🟢 Online' : '🔴 Degraded'} ({connectionStatus.details.vercel?.region || 'Production'})
-                    </Text>
-                  </View>
-                  <View style={styles.healthDetailRow}>
-                    <Text style={styles.healthDetailLabel}>⚡ Supabase DB:</Text>
-                    <Text style={styles.healthDetailVal}>
-                      {connectionStatus.details.supabase?.connected ? '🟢 Connected' : '🔴 Disconnected'} ({connectionStatus.details.supabase?.latencyMs || 0}ms)
-                    </Text>
-                  </View>
-                  <View style={styles.healthDetailRow}>
-                    <Text style={styles.healthDetailLabel}>🛡️ 7-Day Inactivity:</Text>
-                    <Text style={[styles.healthDetailVal, { color: '#047857', fontWeight: '700' }]}>
-                      Ping Active (0 Bytes Stored)
-                    </Text>
-                  </View>
-                  <View style={styles.healthDetailRow}>
-                    <Text style={styles.healthDetailLabel}>⏱️ Total Latency:</Text>
-                    <Text style={styles.healthDetailVal}>
-                      {connectionStatus.details.totalResponseTimeMs || 0} ms
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Tax Base:</Text>
+            <Text style={styles.fieldValue}>Positive Margin Only (Selling − Purchase)</Text>
+          </View>
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Standard Margin GST Rate:</Text>
+            <Text style={styles.fieldValue}>18% (9% CGST + 9% SGST)</Text>
+          </View>
+
+          <View style={[styles.fieldRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.fieldLabel}>Invoice Format:</Text>
+            <Text style={styles.fieldValue}>Single Grand Total Tax Invoice</Text>
+          </View>
         </Card>
 
-        {/* Statutory Scheme Notes */}
-        <Card style={styles.notesCard}>
-          <Text style={styles.cardHeader}>Statutory Margin Scheme (Rule 32(5))</Text>
-          <Text style={styles.noteText}>
-            • <Text style={styles.bold}>Tax Basis:</Text> GST is charged at 18% strictly on the positive profit margin (Selling Price − Purchase Cost).
-          </Text>
-          <Text style={styles.noteText}>
-            • <Text style={styles.bold}>Intra-State Split:</Text> 9% CGST and 9% SGST.
-          </Text>
-          <Text style={styles.noteText}>
-            • <Text style={styles.bold}>Zero/Negative Margins:</Text> If goods are sold at cost or at a loss, GST is ₹0.
-          </Text>
-          <Text style={styles.noteText}>
-            • <Text style={styles.bold}>Turnover Protection:</Text> GST is never levied on the total selling turnover.
-          </Text>
-          <Text style={styles.noteText}>
-            • <Text style={styles.bold}>Input Tax Credit:</Text> No ITC claimed on purchased second-hand lots.
-          </Text>
+        {/* System & Application Details */}
+        <Card style={styles.infoCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardHeaderIcon}>📱</Text>
+            <Text style={styles.cardHeader}>Application Details</Text>
+          </View>
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Application Edition:</Text>
+            <Text style={styles.fieldValue}>Enterprise Production Edition</Text>
+          </View>
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Software Version:</Text>
+            <Text style={styles.fieldValue}>v1.0.0 (Lifetime License)</Text>
+          </View>
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Data Synchronization:</Text>
+            <Text style={[styles.fieldValue, { color: colors.success, fontWeight: '700' }]}>
+              🟢 Real-Time Cloud Sync
+            </Text>
+          </View>
+
+          <View style={[styles.fieldRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.fieldLabel}>PDF Bill Generator:</Text>
+            <Text style={styles.fieldValue}>Integrated WhatsApp & Print Engine</Text>
+          </View>
         </Card>
 
-        <View style={styles.footer}>
-          <Text style={styles.versionText}>Smart Move Traders Billing App v1.0.0 (JavaScript Edition)</Text>
-          <Text style={styles.versionSubtext}>Built with Expo, Node.js, Express & Supabase</Text>
+        {/* Copyright Footer */}
+        <View style={styles.footerWrap}>
+          <Text style={styles.footerText}>© 2026 Smart Move Traders. All rights reserved.</Text>
+          <Text style={styles.footerSubtext}>Dedicated Enterprise Mobile Billing Platform</Text>
         </View>
       </ScrollView>
     </View>
@@ -218,172 +147,124 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 50
   },
-  header: {
-    marginBottom: 16
+  brandHero: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
+  logoFrame: {
+    width: 84,
+    height: 84,
+    borderRadius: 18,
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  heroLogo: {
+    width: 76,
+    height: 76,
+    borderRadius: 14
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: -0.3
+    letterSpacing: 1.2
   },
-  subtitle: {
+  heroSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 2
+    marginTop: 3,
+    fontWeight: '600'
+  },
+  badgePill: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)'
+  },
+  badgeText: {
+    color: '#D97706',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  infoCard: {
+    marginBottom: 14,
+    padding: 16,
+    backgroundColor: '#FFFFFF'
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9'
+  },
+  cardHeaderIcon: {
+    fontSize: 16,
+    marginRight: 8
   },
   cardHeader: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5
-  },
-  profileCard: {
-    marginBottom: 14
   },
   fieldRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight
   },
   fieldLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    flex: 1
+    flex: 1.1,
+    fontWeight: '500'
   },
   fieldValue: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.textPrimary,
-    flex: 1.5,
+    flex: 1.4,
     textAlign: 'right'
   },
   addressText: {
     lineHeight: 18
   },
-  apiCard: {
-    marginBottom: 14
-  },
-  fieldDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 10
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: colors.textPrimary,
-    marginBottom: 10
-  },
-  apiBtnRow: {
-    flexDirection: 'row',
-    gap: 10
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center'
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13
-  },
-  testBtn: {
-    flex: 1,
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center'
-  },
-  testBtnText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 13
-  },
-  statusBox: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1
-  },
-  statusSuccess: {
-    backgroundColor: colors.successLight,
-    borderColor: '#A7F3D0'
-  },
-  statusError: {
-    backgroundColor: colors.dangerLight,
-    borderColor: '#FECACA'
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600'
-  },
-  statusTextSuccess: {
-    color: '#065F46'
-  },
-  statusTextError: {
-    color: colors.danger
-  },
-  healthDetailsBox: {
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#CBD5E1'
-  },
-  healthDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3
-  },
-  healthDetailLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '600'
-  },
-  healthDetailVal: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textPrimary
-  },
-  notesCard: {
-    backgroundColor: '#F8FAFC',
-    borderColor: colors.border,
-    marginBottom: 16
-  },
-  noteText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 6
-  },
-  bold: {
-    fontWeight: '700',
-    color: colors.textPrimary
-  },
-  footer: {
+  footerWrap: {
     alignItems: 'center',
-    marginTop: 10
+    paddingVertical: 16
   },
-  versionText: {
+  footerText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary
+    color: colors.textMuted,
+    fontWeight: '600'
   },
-  versionSubtext: {
+  footerSubtext: {
     fontSize: 10,
     color: colors.textMuted,
     marginTop: 2

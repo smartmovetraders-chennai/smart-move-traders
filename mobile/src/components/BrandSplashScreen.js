@@ -9,6 +9,7 @@ import {
   Dimensions,
   ActivityIndicator
 } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 
 const { width } = Dimensions.get('window');
 
@@ -18,6 +19,9 @@ export default function BrandSplashScreen({ onFinish }) {
   const exitAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Release native OS splash immediately so our rich animated component takes over
+    SplashScreen.hideAsync().catch(() => {});
+
     // 1. Entrance animation (scale + fade in)
     Animated.parallel([
       Animated.timing(fadeAnim, {
