@@ -7,8 +7,10 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSummaryReport, getHealth } from '../services/api';
 import { colors } from '../theme/colors';
 import { formatRupees, formatDate } from '../utils/formatters';
@@ -66,6 +68,9 @@ export default function DashboardScreen({ navigation }) {
     checkCloudHealth();
   }, [fetchSummary, checkCloudHealth]);
 
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? 24 : 16);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchSummary();
@@ -74,7 +79,7 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: topInset + 6 }]}>
         <View style={styles.brandRow}>
           <Image
             source={require('../../assets/logo.png')}
@@ -327,7 +332,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32
+    paddingBottom: 50
   },
   centerContainer: {
     paddingVertical: 60,
