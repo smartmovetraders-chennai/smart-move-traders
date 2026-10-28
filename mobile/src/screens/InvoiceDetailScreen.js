@@ -244,10 +244,15 @@ export default function InvoiceDetailScreen({ route, navigation }) {
               {invoice.items.map((it, idx) => (
                 <View key={idx} style={styles.modelBreakdownRow}>
                   <Text style={styles.modelNameText}>• {it.model}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {it.price > 0 ? (
-                      <Text style={[styles.modelQtyBadge, { backgroundColor: '#F0FDF4', color: '#166534', marginRight: 6 }]}>
-                        {formatRupees(it.price)}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    {!isCustomerFacing && (it.price > 0 || it.cost > 0) ? (
+                      <Text style={[styles.modelQtyBadge, { backgroundColor: '#F0FDF4', color: '#166534' }]}>
+                        Cost: {formatRupees(it.price || it.cost)}
+                      </Text>
+                    ) : null}
+                    {(it.selling_price > 0 || it.sellingPrice > 0) ? (
+                      <Text style={[styles.modelQtyBadge, { backgroundColor: '#EFF6FF', color: '#1E40AF' }]}>
+                        Sell: {formatRupees(it.selling_price || it.sellingPrice)}
                       </Text>
                     ) : null}
                     <Text style={styles.modelQtyBadge}>{it.quantity} Qty</Text>

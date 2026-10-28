@@ -102,7 +102,16 @@ function generateBillHtml(invoice, options = { isCustomerFacing: true }) {
           Second-Hand Smartphones (Wholesale Lot)
           ${Array.isArray(invoice.items) && invoice.items.length > 0 ? `
             <div style="font-size: 11px; color: #64748b; margin-top: 5px; line-height: 1.4;">
-              ${invoice.items.map(it => `• ${it.model}: <strong>${it.quantity} Qty</strong>${it.price > 0 ? ` &mdash; <span style="color: #166534; font-weight: 600;">₹${Number(it.price).toLocaleString('en-IN')}</span>` : ''}`).join('<br>')}
+              ${invoice.items.map(it => {
+                const parts = [`• ${it.model}: <strong>${it.quantity} Qty</strong>`];
+                if (!isCustomer && (it.price > 0 || it.cost > 0)) {
+                  parts.push(`<span style="color: #166534; font-weight: 600;">Cost: ₹${Number(it.price || it.cost).toLocaleString('en-IN')}</span>`);
+                }
+                if (it.selling_price > 0 || it.sellingPrice > 0) {
+                  parts.push(`<span style="color: #1e40af; font-weight: 600;">Sell: ₹${Number(it.selling_price || it.sellingPrice).toLocaleString('en-IN')}</span>`);
+                }
+                return parts.join(' &mdash; ');
+              }).join('<br>')}
             </div>
           ` : ''}
         </td>

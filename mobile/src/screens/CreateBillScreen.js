@@ -24,7 +24,7 @@ export default function CreateBillScreen({ navigation }) {
   const [quantity, setQuantity] = useState("");
   const [useModelBreakdown, setUseModelBreakdown] = useState(false);
   const [modelItems, setModelItems] = useState([
-    { model: "", quantity: "", price: "" },
+    { model: "", quantity: "", price: "", sellingPrice: "" },
   ]);
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [sellingAmount, setSellingAmount] = useState("");
@@ -49,15 +49,32 @@ export default function CreateBillScreen({ navigation }) {
     }, 0);
   }, [modelItems]);
 
-  // When model breakdown is used and prices are entered, auto-sync to purchaseAmount
+  const totalModelSelling = useMemo(() => {
+    return modelItems.reduce((acc, curr) => {
+      const sp = parseFloat(curr.sellingPrice);
+      return acc + (!isNaN(sp) && sp > 0 ? sp : 0);
+    }, 0);
+  }, [modelItems]);
+
+  // When model breakdown is used and costs are entered, auto-sync to purchaseAmount
   useEffect(() => {
     if (useModelBreakdown && totalModelCost > 0) {
       setPurchaseAmount(String(totalModelCost));
     }
   }, [useModelBreakdown, totalModelCost]);
 
+  // When model breakdown is used and selling prices are entered, auto-sync to sellingAmount
+  useEffect(() => {
+    if (useModelBreakdown && totalModelSelling > 0) {
+      setSellingAmount(String(totalModelSelling));
+    }
+  }, [useModelBreakdown, totalModelSelling]);
+
   const handleAddModelRow = () => {
-    setModelItems((prev) => [...prev, { model: "", quantity: "", price: "" }]);
+    setModelItems((prev) => [
+      ...prev,
+      { model: "", quantity: "", price: "", sellingPrice: "" },
+    ]);
   };
 
   const handleRemoveModelRow = (index) => {
@@ -94,6 +111,7 @@ export default function CreateBillScreen({ navigation }) {
           model: it.model.trim(),
           quantity: parseInt(it.quantity, 10),
           price: parseFloat(it.price) || 0,
+          selling_price: parseFloat(it.sellingPrice) || 0,
         }));
 
       if (itemsPayload.length === 0) {
@@ -158,7 +176,9 @@ export default function CreateBillScreen({ navigation }) {
               text: "Create Another",
               onPress: () => {
                 setQuantity("");
-                setModelItems([{ model: "", quantity: "" }]);
+                setModelItems([
+                  { model: "", quantity: "", price: "", sellingPrice: "" },
+                ]);
                 setPurchaseAmount("");
                 setSellingAmount("");
                 setClientName("");
@@ -223,11 +243,19 @@ export default function CreateBillScreen({ navigation }) {
 
             {useModelBreakdown ? (
               <View style={styles.modelsContainer}>
+                <View style={styles.modelHeaderRow}>
+                  <Text style={[styles.modelColHeader, { flex: 1.8 }]}>Model</Text>
+                  <Text style={[styles.modelColHeader, { flex: 0.8, textAlign: "center" }]}>Qty</Text>
+                  <Text style={[styles.modelColHeader, { flex: 1.1, textAlign: "center" }]}>Cost (₹)</Text>
+                  <Text style={[styles.modelColHeader, { flex: 1.1, textAlign: "center" }]}>Sell (₹)</Text>
+                  {modelItems.length > 1 ? <View style={{ width: 28 }} /> : null}
+                </View>
+
                 {modelItems.map((item, index) => (
                   <View key={index} style={styles.modelRow}>
                     <TextInput
                       style={[styles.input, styles.modelNameInput]}
-                      placeholder="Model (e.g. iPhone 17)"
+                      placeholder="e.g. iPhone 17"
                       placeholderTextColor={colors.textMuted}
                       value={item.model}
                       onChangeText={(val) =>
@@ -236,7 +264,7 @@ export default function CreateBillScreen({ navigation }) {
                     />
                     <TextInput
                       style={[styles.input, styles.modelQtyInput]}
-                      placeholder="Qty"
+                      placeholder="0"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="number-pad"
                       value={String(item.quantity || "")}
@@ -246,12 +274,22 @@ export default function CreateBillScreen({ navigation }) {
                     />
                     <TextInput
                       style={[styles.input, styles.modelPriceInput]}
-                      placeholder="Cost (₹)"
+                      placeholder="Cost"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
                       value={String(item.price || "")}
                       onChangeText={(val) =>
                         handleUpdateModelItem(index, "price", val)
+                      }
+                    />
+                    <TextInput
+                      style={[styles.input, styles.modelSellingInput]}
+                      placeholder="Sell"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                      value={String(item.sellingPrice || "")}
+                      onChangeText={(val) =>
+                        handleUpdateModelItem(index, "sellingPrice", val)
                       }
                     />
                     {modelItems.length > 1 ? (
@@ -279,20 +317,30 @@ export default function CreateBillScreen({ navigation }) {
                 <View style={styles.totalModelQtyBanner}>
                   <View>
                     <Text style={styles.totalModelQtyLabel}>
-                      Total Quantity:
+                      Total Qty:
                     </Text>
                     <Text style={styles.totalModelQtyVal}>
                       {totalModelQty} Devices
                     </Text>
                   </View>
-                  <View style={{ alignItems: "flex-end" }}>
+                  <View style={{ alignItems: "center" }}>
                     <Text style={styles.totalModelQtyLabel}>
-                      Total Purchase Cost:
+                      Total Cost:
                     </Text>
                     <Text
                       style={[styles.totalModelQtyVal, { color: "#059669" }]}
                     >
                       {formatRupees(totalModelCost)}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.totalModelQtyLabel}>
+                      Total Selling:
+                    </Text>
+                    <Text
+                      style={[styles.totalModelQtyVal, { color: colors.primary }]}
+                    >
+                      {formatRupees(totalModelSelling)}
                     </Text>
                   </View>
                 </View>
@@ -322,7 +370,7 @@ export default function CreateBillScreen({ navigation }) {
               />
               <Text style={styles.hint}>
                 {useModelBreakdown && totalModelCost > 0
-                  ? "Auto-calculated from model prices"
+                  ? "Auto-calculated from model costs"
                   : "Lot buy cost"}
               </Text>
             </View>
@@ -337,7 +385,11 @@ export default function CreateBillScreen({ navigation }) {
                 value={sellingAmount}
                 onChangeText={setSellingAmount}
               />
-              <Text style={styles.hint}>Lot sale price</Text>
+              <Text style={styles.hint}>
+                {useModelBreakdown && totalModelSelling > 0
+                  ? "Auto-calculated from model sell prices"
+                  : "Lot sale price"}
+              </Text>
             </View>
           </View>
 
@@ -726,36 +778,61 @@ const styles = StyleSheet.create({
   modelsContainer: {
     marginTop: 6,
   },
+  modelHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+    paddingHorizontal: 2,
+  },
+  modelColHeader: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
   modelRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
   },
   modelNameInput: {
-    flex: 2,
-    marginRight: 6,
+    flex: 1.8,
+    marginRight: 4,
+    paddingHorizontal: 8,
+    fontSize: 13,
   },
   modelQtyInput: {
-    flex: 0.9,
-    marginRight: 6,
+    flex: 0.8,
+    marginRight: 4,
     textAlign: "center",
+    paddingHorizontal: 4,
+    fontSize: 13,
   },
   modelPriceInput: {
-    flex: 1.4,
-    marginRight: 6,
+    flex: 1.1,
+    marginRight: 4,
+    textAlign: "center",
+    paddingHorizontal: 4,
+    fontSize: 13,
+  },
+  modelSellingInput: {
+    flex: 1.1,
+    marginRight: 4,
+    textAlign: "center",
+    paddingHorizontal: 4,
+    fontSize: 13,
   },
   removeModelBtn: {
-    width: 32,
-    height: 42,
+    width: 28,
+    height: 40,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#FEE2E2",
-    borderRadius: 8,
+    borderRadius: 6,
   },
   removeModelBtnText: {
     color: colors.danger,
     fontWeight: "800",
-    fontSize: 14,
+    fontSize: 13,
   },
   addModelBtn: {
     paddingVertical: 8,

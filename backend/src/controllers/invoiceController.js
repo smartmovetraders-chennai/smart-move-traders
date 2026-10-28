@@ -13,11 +13,18 @@ function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items
     .filter(it => it && (it.model || it.model_name) && Number(it.quantity) > 0)
-    .map(it => ({
-      model: String(it.model || it.model_name).trim(),
-      quantity: parseInt(it.quantity, 10),
-      price: it.price !== undefined && it.price !== null && !isNaN(Number(it.price)) ? Number(it.price) : 0
-    }));
+    .map(it => {
+      const price = it.price !== undefined && it.price !== null && !isNaN(Number(it.price)) ? Number(it.price) : 0;
+      const sellingPrice = it.selling_price !== undefined && it.selling_price !== null && !isNaN(Number(it.selling_price))
+        ? Number(it.selling_price)
+        : (it.sellingPrice !== undefined && it.sellingPrice !== null && !isNaN(Number(it.sellingPrice)) ? Number(it.sellingPrice) : 0);
+      return {
+        model: String(it.model || it.model_name).trim(),
+        quantity: parseInt(it.quantity, 10),
+        price,
+        selling_price: sellingPrice
+      };
+    });
 }
 
 function extractItems(invoice) {
